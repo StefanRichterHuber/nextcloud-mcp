@@ -1,5 +1,7 @@
 # Nextcloud MCP Server
 
+> **Disclaimer:** This project is an independent community effort and is not affiliated with, maintained, or endorsed by the original [Nextcloud project](https://nextcloud.com/).
+
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that bridges Claude (and other MCP clients) to a [Nextcloud](https://nextcloud.com/) instance, enabling AI assistants to work with files stored in Nextcloud on behalf of authenticated users.
 
 The primary use case is **collaborative work on text-based files between a user and an LLM**. Rather than having the AI silently overwrite files, the intended workflow is iterative and transparent: the user and the AI discuss changes, the AI proposes them in a reviewable form, and the user stays in control of what actually gets written. Every change is traceable through Nextcloud's built-in version history, so nothing is ever truly lost.
