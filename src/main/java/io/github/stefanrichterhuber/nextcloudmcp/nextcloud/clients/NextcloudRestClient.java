@@ -1,11 +1,10 @@
 package io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients;
 
-import javax.management.Query;
-
 import org.eclipse.microprofile.rest.client.annotation.RegisterClientHeaders;
 
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.FulltextSearchQuery;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.FulltextSearchResult;
+import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.search.Query;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;

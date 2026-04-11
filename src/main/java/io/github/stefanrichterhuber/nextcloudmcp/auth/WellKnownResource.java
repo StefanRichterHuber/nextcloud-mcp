@@ -10,6 +10,7 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 
 @Path("/.well-known/")
 public class WellKnownResource {
@@ -26,12 +27,12 @@ public class WellKnownResource {
     @GET
     @Path("oauth-protected-resource")
     @PermitAll
-    @Produces("application/json")
+    @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Object> getOAuthProtectedResource() {
         Map<String, Object> response = new HashMap<>();
         response.put("resource", rootUrl);
         response.put("authorization_servers", List.of(authServerUrl));
-        response.put("scopes_supported", List.of("openid", "profile", "email", "roles", "groups", "offline_access"));
+        response.put("scopes_supported", List.of("openid", "profile", "email", "groups"));
 
         response.put("resource_documentation", rootUrl + "/docs");
         return response;
@@ -43,7 +44,7 @@ public class WellKnownResource {
      */
     @GET
     @Path("oauth-protected-resource/mcp")
-    @Produces("application/json")
+    @Produces(MediaType.APPLICATION_JSON)
     @PermitAll
     public Map<String, Object> getOAuthProtectedResourceMcp() {
         Map<String, Object> response = new HashMap<>();

@@ -1,0 +1,172 @@
+{@java.lang.String href}
+{@java.lang.String nextcloudUser}
+{@java.lang.Boolean inlineResources}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    {#if inlineResources == false}
+    <base href="{href}" />
+    {/if}
+    <title>Nextcloud file access configuration</title>
+
+    {#if inlineResources}
+    <style>
+      {resources.css.raw}
+    </style>
+    {#else}
+    {#bundle tag="style"/} 
+    {/if}
+  </head>
+  <body>
+    <!-- Toast -->
+    <div
+      class="toast-container position-fixed bottom-0 end-0 p-3"
+      style="z-index: 9999"
+    >
+      <div id="toast-success" class="toast align-items-center" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">
+            <i class="bi bi-check2-circle me-2"></i>Configuration submitted
+            successfully.
+          </div>
+          <button
+            type="button"
+            class="btn-close btn-close-white me-2 m-auto"
+            data-bs-dismiss="toast"
+          ></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h1 class="card-title">Nextcloud MCP Security</h1>
+        <h6 class="card-subtitle mb-2 text-body-secondary">
+          Nextcloud user: {nextcloudUser}
+        </h6>
+      </div>
+      <div class="card-body">
+        <form id="scanForm" novalidate>
+          <!-- Root Folder -->
+          <div class="mb-4">
+            <label for="rootFolder" class="form-label">Root Folder</label>
+            <div class="input-group">
+              <span class="input-group-text"
+                ><i class="bi bi-folder2"></i
+              ></span>
+              <input
+                type="text"
+                class="form-control"
+                id="rootFolder"
+                name="rootFolder"
+                placeholder="/documents"
+                required
+                pattern="^[^\0]+"
+              />
+            </div>
+            <div class="invalid-feedback" id="rootFolder-error">
+              Please enter a valid root folder path.
+            </div>
+            <div class="form-text mt-1">
+              Absolute or relative path to the directory to scan.
+            </div>
+          </div>
+
+          <!-- File Pattern -->
+          <div class="mb-4">
+            <label for="patternInput" class="form-label"
+              >Include Patterns</label
+            >
+            <div id="pattern-tags"></div>
+            <input
+              type="text"
+              class="form-control"
+              id="patternInput"
+              placeholder="*.md, *.txt, *.js — press Enter or comma to add"
+            />
+            <!-- Hidden field holds the actual serialised value for validation -->
+            <input type="hidden" id="filePatterns" name="filePatterns" />
+            <div class="invalid-feedback" id="pattern-error">
+              Add at least one file pattern (e.g. *.md).
+            </div>
+            <div class="form-text mt-1">
+              Glob patterns separated by commas or Enter. Accepted:
+              <code style="color: var(--accent2)">*.ext</code>,
+              <code style="color: var(--accent2)">prefix*</code>,
+              <code style="color: var(--accent2)">name.ext</code>.
+            </div>
+          </div>
+
+          <hr />
+
+          <!-- Content Types -->
+          <div class="mb-4">
+            <label class="form-label">Content Types</label>
+            <div class="content-section">
+              <div class="content-section-label">Select at least one</div>
+              <div class="form-check mb-2">
+                <input
+                  class="form-check-input content-check"
+                  type="checkbox"
+                  id="chkText"
+                  name="contentText"
+                  value="true"
+                />
+                <label class="form-check-label" for="chkText">
+                  <i class="bi bi-file-text"></i> Text Content
+                </label>
+              </div>
+              <div class="form-check mb-2">
+                <input
+                  class="form-check-input content-check"
+                  type="checkbox"
+                  id="chkImage"
+                  name="contentImage"
+                  value="true"
+                />
+                <label class="form-check-label" for="chkImage">
+                  <i class="bi bi-image"></i> Image Content
+                </label>
+              </div>
+              <div class="form-check">
+                <input
+                  class="form-check-input content-check"
+                  type="checkbox"
+                  id="chkAudio"
+                  name="contentAudio"
+                  value="true"
+                />
+                <label class="form-check-label" for="chkAudio">
+                  <i class="bi bi-soundwave"></i> Audio Content
+                </label>
+              </div>
+              <div id="content-error">
+                <i class="bi bi-exclamation-triangle me-1"></i>Select at least
+                one content type.
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <button
+            type="submit"
+            class="btn-scan"
+            formenctype="multipart/form-data"
+            formmethod="post"
+          >
+            <i class="bi bi-search me-2"></i>Save Configuration
+          </button>
+        </form>
+      </div>
+    </div>
+    {#if inlineResources}
+    <script>
+      {resources.js.raw}
+    </script>
+    {#else} 
+    {#bundle tag="script"/}
+    {/if}
+  </body>
+</html>

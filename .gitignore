@@ -44,3 +44,7 @@ nb-configuration.xml
 # TLS Certificates
 .certs/
 users.json
+
+# Quarkus web bundler
+node_modules/
+full.html

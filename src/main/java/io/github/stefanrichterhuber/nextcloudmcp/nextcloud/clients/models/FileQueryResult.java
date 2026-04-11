@@ -1,16 +1,20 @@
 package io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models;
 
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
 import org.w3c.dom.Element;
 
+import com.github.sardine.Sardine;
 import com.github.sardine.model.Multistatus;
 import com.github.sardine.model.Prop;
 import com.github.sardine.model.Response;
 
+import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.search.Property;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import jakarta.activation.DataSource;
 
 @RegisterForReflection
 public class FileQueryResult {
@@ -119,6 +123,31 @@ public class FileQueryResult {
                 default:
                     return extractAnyValue(localName);
             }
+        }
+
+        /**
+         * Converts this to a NextCloudFile
+         * 
+         * @param sardine
+         * @param user
+         * @return
+         */
+        public NextCloudFile toNextCloudFile(Sardine sardine, String user) {
+            final Date lastModified = getProperty(Property.GET_LAST_MODIFIED).map(Object::toString)
+                    .map(Long::parseLong).map(Date::new).orElse(null);
+            final Integer fileId = getProperty(Property.GET_LAST_MODIFIED).map(Object::toString)
+                    .map(Integer::parseInt).orElse(null);
+            final String etag = getProperty(Property.GET_ETAG).map(Object::toString).orElse(null);
+            final Long contentLength = getProperty(Property.GET_CONTENT_LENGTH).map(Object::toString)
+                    .map(Long::parseLong).orElse(null);
+            final String contentType = getProperty(Property.GET_CONTENT_TYPE).map(Object::toString).orElse(null);
+            final String filePath = getAbsolutePath();
+            final DataSource ds = new SardineDataSource(sardine, filePath, contentType);
+
+            final NextCloudFile file = new NextCloudFile(fileId, user, getPath(),
+                    etag, lastModified, ds,
+                    contentLength);
+            return file;
         }
 
     }

@@ -1,6 +1,7 @@
 package io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
@@ -14,7 +15,6 @@ import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.NextcloudLogi
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.NextcloudLoginFlowRestClient.NextcloudAppCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextcloudUserCredentials;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
-import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.core.Response;
@@ -36,8 +36,24 @@ public class NextcloudLoginService {
     @Inject
     Logger log;
 
+    /**
+     * Results of the login flow initiation, containing the URL the user has to
+     * click
+     * and a future that will be completed once the user has finished the login flow
+     */
     public record LoginFlowJob(String loginUrl, CompletionStage<NextcloudUserCredentials> session) {
 
+    }
+
+    /**
+     * Exception thrown when the login flow fails, either because the user did not
+     * finish the login process within 20 minutes, or because of an unexpected error
+     * during the login flow process.
+     */
+    public class LoginFLowFailedException extends RuntimeException {
+        public LoginFLowFailedException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 
     /**
@@ -45,12 +61,12 @@ public class NextcloudLoginService {
      * 
      * @see https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html
      */
-    private static int TOKEN_MAXTIME = 20 * 60;
+    private static Duration TOKEN_MAXTIME = Duration.ofMinutes(20);
 
     /**
-     * Check for finished login flow every 10 seconds
+     * Check for finished login flow every x seconds
      */
-    private static final int TOKEN_POLL_RETRY = 5;
+    private static final Duration TOKEN_POLL_RETRY = Duration.ofSeconds(5);
 
     /**
      * Initiates the Nextcloud Login Flow V2 for the configured default nextcloud
@@ -86,7 +102,7 @@ public class NextcloudLoginService {
         executorService.schedule(
                 () -> pollLoginToken(loginFlowClient, r.poll().token(), r.poll().endpoint(),
                         TOKEN_MAXTIME, session),
-                TOKEN_POLL_RETRY,
+                TOKEN_POLL_RETRY.getSeconds(),
                 TimeUnit.SECONDS);
 
         return new LoginFlowJob(url, session);
@@ -95,12 +111,28 @@ public class NextcloudLoginService {
 
     /**
      * Polls the login token previously generated with
-     * {@link #initiateLoginFlow(String, String)}.
+     * {@link #initiateLoginFlow(String, String)}. Completes the given future once
+     * the user has finished the login flow and the token is valid. If the token is
+     * not valid yet, retries until the token expires after 20 minutes.
+     * If the token expires, completes the future exceptionally with a timeout
+     * exception.
+     * 
+     * @param loginFlowClient the rest client to call the poll endpoint
+     * @param token           the login token to poll for
+     * @param pollurl         the URL of the poll endpoint (provided by the response
+     *                        of the login flow initiation)
+     * @param remainingTime   the remaining time until the token expires (starts
+     *                        with {@link #TOKEN_MAXTIME} and is reduced by
+     *                        {@link #TOKEN_POLL_RETRY} on each
+     *                        retry)
+     * @param result          the future to complete once the user has finished the
+     *                        login flow and the token is valid, or to complete
+     *                        exceptionally if the token expires
      * 
      * @see https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html
      */
     private void pollLoginToken(NextcloudLoginFlowRestClient loginFlowClient,
-            String token, String pollurl, int remainingTime,
+            String token, String pollurl, Duration remainingTime,
             CompletableFuture<NextcloudUserCredentials> result) {
         try {
             final Response response = loginFlowClient.pollLoginFlowV2(token);
@@ -114,15 +146,19 @@ public class NextcloudLoginService {
         } catch (ClientWebApplicationException e) {
             // Failed as expected (fails with 404 as long the user has not finished the
             // login process)
-            if (e.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode() && remainingTime > 0) {
+            if (e.getResponse().getStatus() == Status.NOT_FOUND.getStatusCode() && remainingTime.getSeconds() > 0) {
+                Duration newRemainingTime = remainingTime.minus(TOKEN_POLL_RETRY);
+
                 executorService.schedule(
                         () -> pollLoginToken(loginFlowClient, token, pollurl,
-                                remainingTime - TOKEN_POLL_RETRY, result),
-                        TOKEN_POLL_RETRY,
+                                newRemainingTime, result),
+                        TOKEN_POLL_RETRY.getSeconds(),
                         TimeUnit.SECONDS);
             } else {
-                result.completeExceptionally(new RuntimeException("Loginflow timeout after 20min", e));
+                result.completeExceptionally(new LoginFLowFailedException("Loginflow timeout after 20min", e));
             }
+        } catch (Exception e) {
+            result.completeExceptionally(new LoginFLowFailedException("Unexpected error during login flow", e));
         }
     }
 }

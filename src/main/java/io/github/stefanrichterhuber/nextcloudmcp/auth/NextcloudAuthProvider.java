@@ -2,6 +2,7 @@ package io.github.stefanrichterhuber.nextcloudmcp.auth;
 
 import java.util.Base64;
 
+import jakarta.ws.rs.core.MultivaluedHashMap;
 import jakarta.ws.rs.core.MultivaluedMap;
 
 public interface NextcloudAuthProvider {
@@ -12,7 +13,11 @@ public interface NextcloudAuthProvider {
      *
      * @return
      */
-    MultivaluedMap<String, String> getCustomHeaders();
+    default MultivaluedMap<String, String> getCustomHeaders() {
+        MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
+        headers.add("OCS-APIRequest", "true");
+        return headers;
+    }
 
     /**
      * User for basic auth header
@@ -33,7 +38,7 @@ public interface NextcloudAuthProvider {
      *
      * @return
      */
-    String getUrl();
+    String getServer();
 
     /**
      * Returns a Basic-Auth Authorization header build from {@link #getUser()} and

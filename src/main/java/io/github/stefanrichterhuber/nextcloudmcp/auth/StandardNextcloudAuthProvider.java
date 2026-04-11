@@ -3,20 +3,11 @@ package io.github.stefanrichterhuber.nextcloudmcp.auth;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.ws.rs.core.MultivaluedHashMap;
-import jakarta.ws.rs.core.MultivaluedMap;
 
 @ApplicationScoped
 public class StandardNextcloudAuthProvider implements NextcloudAuthProvider {
     @Inject
     UserRepository userRepository;
-
-    @Override
-    public MultivaluedMap<String, String> getCustomHeaders() {
-        MultivaluedMap<String, String> headers = new MultivaluedHashMap<>();
-        headers.add("OCS-APIRequest", "true");
-        return headers;
-    }
 
     @Override
     public String getUser() {
@@ -31,7 +22,7 @@ public class StandardNextcloudAuthProvider implements NextcloudAuthProvider {
     }
 
     @Override
-    public String getUrl() {
+    public String getServer() {
         return userRepository.getCredentialsForCurrentUser()
                 .orElseThrow(() -> new IllegalStateException("No credentials found for current user")).server();
     }

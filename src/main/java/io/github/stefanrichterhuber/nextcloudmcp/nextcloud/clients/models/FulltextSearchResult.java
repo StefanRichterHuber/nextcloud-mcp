@@ -5,7 +5,6 @@ import java.util.List;
 
 import com.github.sardine.Sardine;
 
-import eu.stefanhuber.aiagent.nextcloud.model.NextCloudFile;
 import jakarta.activation.DataSource;
 
 /**

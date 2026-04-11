@@ -20,7 +20,8 @@ public class SardineProvider {
     @RequestScoped
     public Sardine getSardineInstance() {
         Sardine sardine = SardineFactory.begin(auth.getUser(), auth.getPassword());
-        sardine.enablePreemptiveAuthentication(auth.getUrl());
+        sardine.enablePreemptiveAuthentication(auth.getServer());
+        sardine.enablePreemptiveAuthentication(auth.getServer().replace("https://", "").replace("http://", ""));
         return sardine;
     }
 
