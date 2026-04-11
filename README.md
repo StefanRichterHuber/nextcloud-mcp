@@ -8,6 +8,16 @@ The primary use case is **collaborative work on text-based files between a user 
 
 Built with [Quarkus](https://quarkus.io/) 3.x and the [Quarkus MCP Server](https://docs.quarkiverse.io/quarkus-mcp-server/dev/) extension.
 
+## Deployment
+
+An docker image is available at `stefanrichterhuber/nextcloudmcp` at docker hub.
+
+Prepare an env file using the [Configuration](#configuration) `config.env`. The mcp server is available at `localhost:8080/mcp`. Create an empty file `users.json` as user database. File must be writable by the container (see config property `app.user-repository.file` or env variable `APP_USER_REPOSITORY_FILE`).
+
+```bash
+docker run --volume ./users.json:/work/users.json --env-file ./config.env -p 8080:8080 stefanrichterhuber/nextcloudmcp@latest
+```
+
 ## Architecture Overview
 
 ```text
@@ -51,7 +61,7 @@ The following environment variables configure the server:
 | `QUARKUS_OIDC_AUTH_SERVER_URL` | yes | Base URL of the OIDC identity provider (e.g. `https://idp.example.com/realms/myrealm`) |
 | `QUARKUS_OIDC_CLIENT_ID` | yes | Pre-registered OIDC client ID provided to MCP clients during dynamic registration |
 | `QUARKUS_OIDC_CREDENTIALS_SECRET` | yes | Corresponding OIDC client secret |
-| `APP_ROOT_URL` | yes | Public root URL of this server (used in CORS headers and MCP App CSP), e.g. `https://nextcloud-mcp.example.com` |
+| `APP_ROOT_URL` | yes | Public root URL of this server (used in CORS headers and MCP App CSP), e.g. `https://nextcloud-mcp.example.com`. The mcp server is available ${app.root-url}/mcp |
 | `NEXTCLOUD_URL` | yes | Root URL of the Nextcloud instance, e.g. `https://nextcloud.example.com` |
 | `NEXTCLOUD_USER` | no | Nextcloud user for integration tests only |
 | `NEXTCLOUD_PASSWORD` | no | Nextcloud password for integration tests only |
@@ -62,7 +72,7 @@ Additional settings are controlled via `src/main/resources/application.propertie
 | :--- | :--- | :--- |
 | `app.user-repository.file` | `users.json` | Path to the JSON file that persists user credentials and access configuration |
 | `app.root-url` | `http://localhost:8080` | Root URL (fallback if `APP_ROOT_URL` is not set) |
-| `app.mcp.app.inline-resources` | `true` | Inline static resources into MCP App HTML responses |
+| `app.mcp.app.inline-resources` | `true` | Inline static resources into MCP App HTML responses. Required for Claude AI. |
 | `nextcloud.app-name` | `mcp-server` | App name used when requesting Nextcloud app passwords |
 
 ### User Data
