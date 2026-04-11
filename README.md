@@ -12,10 +12,10 @@ Built with [Quarkus](https://quarkus.io/) 3.x and the [Quarkus MCP Server](https
 
 An docker image is available at `stefanrichterhuber/nextcloudmcp` at docker hub.
 
-Prepare an env file using the [Configuration](#configuration) `config.env`. The mcp server is available at `localhost:8080/mcp`.
+Prepare an env file using the [Configuration](#configuration) `config.env`. The mcp server is available at `localhost:8080/mcp`. Create an empty file `users.json` as user database. File must be writable by the container (see config property `app.user-repository.file` or env variable `APP_USER_REPOSITORY_FILE`).
 
 ```bash
-docker run --env-file config.env -p 8080:8080 stefanrichterhuber/nextcloudmcp@latest
+docker run --volume ./users.json:/work/users.json --env-file ./config.env -p 8080:8080 stefanrichterhuber/nextcloudmcp@latest
 ```
 
 ## Architecture Overview
@@ -72,7 +72,7 @@ Additional settings are controlled via `src/main/resources/application.propertie
 | :--- | :--- | :--- |
 | `app.user-repository.file` | `users.json` | Path to the JSON file that persists user credentials and access configuration |
 | `app.root-url` | `http://localhost:8080` | Root URL (fallback if `APP_ROOT_URL` is not set) |
-| `app.mcp.app.inline-resources` | `true` | Inline static resources into MCP App HTML responses |
+| `app.mcp.app.inline-resources` | `true` | Inline static resources into MCP App HTML responses. Required for Claude AI. |
 | `nextcloud.app-name` | `mcp-server` | App name used when requesting Nextcloud app passwords |
 
 ### User Data
