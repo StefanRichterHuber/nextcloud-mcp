@@ -20,6 +20,17 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Determine image tag
+        id: tag
+        run: |
+            BRANCH="${GITHUB_REF_NAME}"
+            if [ "$BRANCH" = "main" ]; then
+            echo "tag=latest" >> $GITHUB_OUTPUT
+            else
+            # sanitize: replace slashes with dashes (e.g. feature/foo → feature-foo)
+            echo "tag=${BRANCH//\//-}" >> $GITHUB_OUTPUT
+            fi
+
       - name: Set up QEMU (for multi-platform builds)
         uses: docker/setup-qemu-action@v4
 
@@ -43,7 +54,8 @@ jobs:
         run: mvn -B package -Dmaven.test.skip=true -Dquarkus.container-image.build=true --file pom.xml
         env:
             QUARKUS_CONTAINER_IMAGE_NAME: nextcloudmcp
-            QUARKUS_CONTAINER_IMAGE_TAG: latest
+            QUARKUS_CONTAINER_IMAGE_TAG:  ${{ steps.tag.outputs.tag }}
+            QUARKUS_CONTAINER_IMAGE_ADDITIONAL_TAGS:  ${{ github.sha }}
             QUARKUS_CONTAINER_IMAGE_BUILD: true
             QUARKUS_CONTAINER_IMAGE_PUSH: true
             QUARKUS_CONTAINER_IMAGE_GROUP: ${{ secrets.DOCKER_USERNAME }}
