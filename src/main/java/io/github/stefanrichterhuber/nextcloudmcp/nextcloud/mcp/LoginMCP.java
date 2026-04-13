@@ -11,6 +11,7 @@ import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.NextcloudLogi
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextcloudUserCredentials;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
+import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.Tool.Annotations;
 import io.quarkiverse.mcp.server.ToolResponse;
 import io.quarkus.security.identity.SecurityIdentity;
@@ -20,25 +21,36 @@ import jakarta.inject.Inject;
 /**
  * MCP tools for authenticating a user against Nextcloud.
  *
- * <p>Before any file operation can be performed, the server needs a valid Nextcloud app
+ * <p>
+ * Before any file operation can be performed, the server needs a valid
+ * Nextcloud app
  * password for the authenticated OIDC user. These tools drive the
- * <a href="https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">
+ * <a href=
+ * "https://docs.nextcloud.com/server/latest/developer_manual/client_apis/LoginFlow/index.html">
  * Nextcloud Login Flow V2</a> to obtain and persist those credentials.
  *
  * <h2>Login sequence</h2>
  * <ol>
- *   <li>The LLM calls {@code check-for-login} to determine whether credentials are already
- *       present for the current user.</li>
- *   <li>If not, the LLM calls {@code initiate-login}. The tool starts a Login Flow V2
- *       session and immediately returns a login URL for the user to open in a browser.</li>
- *   <li>The tool polls for the resulting app password in the background and sends MCP
- *       progress notifications as the flow advances.</li>
- *   <li>Once the user authorises the request in the browser, the credentials are persisted
- *       via {@link UserRepository} and a final progress notification is sent to the LLM.</li>
+ * <li>The LLM calls {@code check-for-login} to determine whether credentials
+ * are already
+ * present for the current user.</li>
+ * <li>If not, the LLM calls {@code initiate-login}. The tool starts a Login
+ * Flow V2
+ * session and immediately returns a login URL for the user to open in a
+ * browser.</li>
+ * <li>The tool polls for the resulting app password in the background and sends
+ * MCP
+ * progress notifications as the flow advances.</li>
+ * <li>Once the user authorises the request in the browser, the credentials are
+ * persisted
+ * via {@link UserRepository} and a final progress notification is sent to the
+ * LLM.</li>
  * </ol>
  *
- * <p>At most one login flow per OIDC user is tracked at a time. Calling
- * {@code initiate-login} while a flow is already in progress simply returns the existing
+ * <p>
+ * At most one login flow per OIDC user is tracked at a time. Calling
+ * {@code initiate-login} while a flow is already in progress simply returns the
+ * existing
  * login URL rather than starting a new one.
  */
 @ApplicationScoped
@@ -47,6 +59,9 @@ public class LoginMCP {
     private static final String TOOL_CHECK_FOR_LOGIN_DESCRIPTION = "Checks if the user is logged in to Nextcloud and has valid credentials.";
     public static final String TOOL_INITIATE_LOGIN_NAME = "initiate-login";
     private static final String TOOL_INITIATE_LOGIN_DESCRIPTION = "Initiates the Nextcloud Login Flow. Returns a URL the user has to click to login and starts polling for the generated token. If there is already an login initiated for the current user, this just returns the existing login url again, until the login process is successful or cancelled.";
+    public static final String TOOL_DELETE_LOGIN_NAME = "delete-login";
+    private static final String TOOL_DELETE_LOGIN_DESCRIPTION = "Deletes the current access to nextcloud and on-going login flows. Re-login with tool "
+            + TOOL_INITIATE_LOGIN_NAME + ".";
 
     @Inject
     UserRepository userRepository;
@@ -71,6 +86,30 @@ public class LoginMCP {
             return ToolResponse.error(
                     "User is not logged in with Nextcloud credentials. Use tool '" + TOOL_INITIATE_LOGIN_NAME
                             + "' to start the login flow.");
+        }
+    }
+
+    @Tool(name = TOOL_DELETE_LOGIN_NAME, description = TOOL_DELETE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Delete Nextcloud login", destructiveHint = true, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
+    public ToolResponse deleteLogin() {
+        final String user = securityIdentity.getPrincipal().getName();
+        // Cancel login flow
+        ongoingLoginFlows.remove(user);
+        // Cancel existing accounts
+        final Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
+        if (credentials.isPresent()) {
+            final boolean success = loginService.deleteUserAccount(credentials.get());
+            if (success) {
+                try {
+                    userRepository.saveCredentialsForCurrentUser(null);
+                } catch (Exception e) {
+                    throw new ToolCallException("Failed to delete credentials for user", e);
+                }
+                return ToolResponse.success("User login for Nextcloud sucessfully removed");
+            } else {
+                return ToolResponse.error("Failed to remove Nextcloud login");
+            }
+        } else {
+            return ToolResponse.success("User is already logged out from Nextcloud");
         }
     }
 

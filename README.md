@@ -124,6 +124,7 @@ The `search-in-file` tool uses a locally running embedding model (`all-MiniLM-L6
 | :--- | :--- |
 | `check-for-login` | Check whether the current user already has Nextcloud credentials stored |
 | `initiate-login` | Start the Nextcloud Login Flow V2 and wait for the user to authorize the server |
+| `delete-login` | Stopps on-going login processes and deletes existing Nextcloud credentials. Relogin with `initiate-login` |
 
 When no credentials are present, the AI can invoke `initiate-login` to obtain a login URL that the user opens in a browser. Upon authorization, the server stores the resulting app password automatically.
 
