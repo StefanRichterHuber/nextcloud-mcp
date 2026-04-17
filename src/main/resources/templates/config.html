@@ -1,23 +1,14 @@
 {@java.lang.String href}
 {@java.lang.String nextcloudUser}
-{@java.lang.Boolean inlineResources}
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    {#if inlineResources == false}
     <base href="{href}" />
-    {/if}
     <title>Nextcloud file access configuration</title>
 
-    {#if inlineResources}
-    <style>
-      {resources.css.raw}
-    </style>
-    {#else}
     {#bundle tag="style"/} 
-    {/if}
   </head>
   <body>
     <!-- Toast -->
@@ -161,12 +152,6 @@
         </form>
       </div>
     </div>
-    {#if inlineResources}
-    <script>
-      {resources.js.raw}
-    </script>
-    {#else} 
     {#bundle tag="script"/}
-    {/if}
   </body>
 </html>
