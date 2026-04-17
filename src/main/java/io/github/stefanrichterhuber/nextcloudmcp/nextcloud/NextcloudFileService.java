@@ -67,7 +67,7 @@ import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 
 @ApplicationScoped
-public class NextcloudService {
+public class NextcloudFileService {
     @Inject
     Logger logger;
 
@@ -97,7 +97,7 @@ public class NextcloudService {
         @Override
         public void close() {
             try {
-                NextcloudService.this.sardine.unlock(url, token);
+                NextcloudFileService.this.sardine.unlock(url, token);
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
@@ -112,7 +112,7 @@ public class NextcloudService {
         }
 
         public NextCloudFile getFile() {
-            return NextcloudService.this.getFile(url());
+            return NextcloudFileService.this.getFile(url());
         }
 
     }

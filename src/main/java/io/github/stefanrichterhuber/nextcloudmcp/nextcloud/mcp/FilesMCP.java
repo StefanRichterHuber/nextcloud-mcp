@@ -32,7 +32,7 @@ import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.EmbeddingService;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.NextcloudService;
+import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.FulltextSearchQuery;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.FulltextSearchResult;
@@ -58,24 +58,33 @@ import jakarta.inject.Inject;
 /**
  * MCP tools for Nextcloud file operations.
  *
- * <p>This bean exposes the core file-management capabilities of the Nextcloud MCP server as
- * individual MCP tools. All tools require the calling user to have completed the Nextcloud
+ * <p>
+ * This bean exposes the core file-management capabilities of the Nextcloud MCP
+ * server as
+ * individual MCP tools. All tools require the calling user to have completed
+ * the Nextcloud
  * login flow first (enforced via {@link #assertUserLoggedIn()}).
  *
- * <p>The tools are designed around a collaborative editing workflow:
+ * <p>
+ * The tools are designed around a collaborative editing workflow:
  * <ol>
- *   <li>Browse and read files with {@code list-files} and {@code get-file-content}.</li>
- *   <li>Inspect change history with {@code get-file-revisions}.</li>
- *   <li>Compute a human-reviewable diff between any two revisions with
- *       {@code create-file-diff}.</li>
- *   <li>Apply an approved patch back to the latest revision with
- *       {@code apply-file-patch}, which causes Nextcloud to create a new revision
- *       automatically.</li>
+ * <li>Browse and read files with {@code list-files} and
+ * {@code get-file-content}.</li>
+ * <li>Inspect change history with {@code get-file-revisions}.</li>
+ * <li>Compute a human-reviewable diff between any two revisions with
+ * {@code create-file-diff}.</li>
+ * <li>Apply an approved patch back to the latest revision with
+ * {@code apply-file-patch}, which causes Nextcloud to create a new revision
+ * automatically.</li>
  * </ol>
  *
- * <p>Visibility of files is governed by {@link #isVisibleFile(NextCloudFile)}: only files
- * whose MIME type appears in {@link #visibleContentTypes} are surfaced to the LLM. Per-user
- * file-pattern and content-type filtering ({@link UserRepository.UserAccessConfig}) is
+ * <p>
+ * Visibility of files is governed by {@link #isVisibleFile(NextCloudFile)}:
+ * only files
+ * whose MIME type appears in {@link #visibleContentTypes} are surfaced to the
+ * LLM. Per-user
+ * file-pattern and content-type filtering
+ * ({@link UserRepository.UserAccessConfig}) is
  * partially implemented; see inline TODOs for the remaining work.
  */
 @ApplicationScoped
@@ -96,7 +105,7 @@ public class FilesMCP {
     ResourceManager resourceManager;
 
     @Inject
-    NextcloudService nextcloudService;
+    NextcloudFileService nextcloudService;
 
     @Inject
     EmbeddingService embeddingService;
@@ -121,13 +130,15 @@ public class FilesMCP {
      * fetch it by URI later. If a resource with the same ID already exists it is
      * returned unchanged (idempotent).
      *
-     * <p>The resource ID is {@code <url>@<modifiedMillis>}, which encodes both the
+     * <p>
+     * The resource ID is {@code <url>@<modifiedMillis>}, which encodes both the
      * file path and the exact revision timestamp so that different revisions of the
      * same file map to distinct resource URIs.
      *
      * @param url  the Nextcloud WebDAV path of the file.
      * @param file the file metadata and data source.
-     * @return the {@link ResourceInfo} for the registered (or already existing) resource.
+     * @return the {@link ResourceInfo} for the registered (or already existing)
+     *         resource.
      */
     @SuppressWarnings("unused")
     private ResourceInfo registerNextcloudFileResource(String url, NextCloudFile file) {
@@ -153,17 +164,23 @@ public class FilesMCP {
     }
 
     /**
-     * Reads a Nextcloud file and returns it as a typed MCP {@link ResourceResponse}.
+     * Reads a Nextcloud file and returns it as a typed MCP
+     * {@link ResourceResponse}.
      *
-     * <p>Text-like MIME types (starting with {@code text/}, or matching
-     * {@code application/json}, {@code application/xml}, {@code application/javascript},
-     * {@code application/xhtml+xml}) are returned as a {@link TextResourceContents} with
-     * charset auto-detected via Tika. All other types are Base64-encoded and returned as
+     * <p>
+     * Text-like MIME types (starting with {@code text/}, or matching
+     * {@code application/json}, {@code application/xml},
+     * {@code application/javascript},
+     * {@code application/xhtml+xml}) are returned as a {@link TextResourceContents}
+     * with
+     * charset auto-detected via Tika. All other types are Base64-encoded and
+     * returned as
      * a {@link BlobResourceContents}.
      *
      * @param url  the Nextcloud WebDAV path used as the resource URI.
      * @param file the file metadata and data source.
-     * @return a resource response containing either the text or the encoded binary content.
+     * @return a resource response containing either the text or the encoded binary
+     *         content.
      * @throws ToolCallException if the file content cannot be read.
      */
     private ResourceResponse getNextcloudFileResource(String url, NextCloudFile file) {
@@ -199,13 +216,14 @@ public class FilesMCP {
     /**
      * Builds the MCP metadata map for a Nextcloud file.
      *
-     * <p>The following keys are populated when present on the file:
+     * <p>
+     * The following keys are populated when present on the file:
      * <ul>
-     *   <li>{@code nextcloud/fileId} — the Nextcloud internal file ID.</li>
-     *   <li>{@code nextcloud/modified} — last-modified time as a Unix timestamp in
-     *       milliseconds.</li>
-     *   <li>{@code nextcloud/contentType} — the MIME type reported by WebDAV.</li>
-     *   <li>{@code nextcloud/size} — the file size in bytes.</li>
+     * <li>{@code nextcloud/fileId} — the Nextcloud internal file ID.</li>
+     * <li>{@code nextcloud/modified} — last-modified time as a Unix timestamp in
+     * milliseconds.</li>
+     * <li>{@code nextcloud/contentType} — the MIME type reported by WebDAV.</li>
+     * <li>{@code nextcloud/size} — the file size in bytes.</li>
      * </ul>
      *
      * @param file the Nextcloud file whose metadata should be collected.
@@ -229,17 +247,25 @@ public class FilesMCP {
     /**
      * Decides whether a Nextcloud file should be surfaced to the LLM.
      *
-     * <p>A file is considered visible when its MIME type starts with one of the prefixes
-     * in {@link #visibleContentTypes}. Files without a data source or without a declared
+     * <p>
+     * A file is considered visible when its MIME type starts with one of the
+     * prefixes
+     * in {@link #visibleContentTypes}. Files without a data source or without a
+     * declared
      * content type are always hidden.
      *
-     * <p><b>Known limitations:</b> per-user file-pattern filtering (hidden patterns and
-     * visible-pattern allowlists from {@link UserRepository.UserAccessConfig}) is not yet
-     * applied here. The relevant logic is commented out pending a fix for revision paths,
+     * <p>
+     * <b>Known limitations:</b> per-user file-pattern filtering (hidden patterns
+     * and
+     * visible-pattern allowlists from {@link UserRepository.UserAccessConfig}) is
+     * not yet
+     * applied here. The relevant logic is commented out pending a fix for revision
+     * paths,
      * which carry only a file ID rather than a human-readable name.
      *
      * @param file the Nextcloud file to evaluate.
-     * @return {@code true} if the file should be shown to the LLM, {@code false} otherwise.
+     * @return {@code true} if the file should be shown to the LLM, {@code false}
+     *         otherwise.
      */
     private boolean isVisibleFile(NextCloudFile file) {
         // TODO make this configurable through some ui or config file, e.g. to also show
@@ -286,11 +312,13 @@ public class FilesMCP {
     /**
      * Path-only visibility check used by the full-text search result filter.
      *
-     * <p>This overload operates on a plain file path string rather than a full
+     * <p>
+     * This overload operates on a plain file path string rather than a full
      * {@link NextCloudFile} object (search results do not carry a data source).
      * Per-user file-pattern filtering is not yet implemented here.
      *
-     * @param file the Nextcloud file path to evaluate (e.g. {@code /Documents/notes.md}).
+     * @param file the Nextcloud file path to evaluate (e.g.
+     *             {@code /Documents/notes.md}).
      * @return {@code true} always — pattern-based filtering is not yet implemented.
      */
     private boolean isVisibleFile(String file) {
@@ -332,14 +360,19 @@ public class FilesMCP {
     /**
      * Creates a {@link TextContent} item for a single Nextcloud file.
      *
-     * <p>The text value is set to the resource ID ({@code <url>@<modifiedMillis>}) rather
-     * than the file's actual content, because Claude.ai does not yet render embedded
-     * resource links in tool responses. The resource ID is sufficient for the LLM to
+     * <p>
+     * The text value is set to the resource ID ({@code <url>@<modifiedMillis>})
+     * rather
+     * than the file's actual content, because Claude.ai does not yet render
+     * embedded
+     * resource links in tool responses. The resource ID is sufficient for the LLM
+     * to
      * request the content via a subsequent {@code get-file-content} call.
      *
      * @param url  the Nextcloud WebDAV path of the file.
      * @param file the file metadata.
-     * @return a {@link TextContent} carrying the resource ID and Nextcloud metadata.
+     * @return a {@link TextContent} carrying the resource ID and Nextcloud
+     *         metadata.
      */
     private Content textContentFrom(String url, NextCloudFile file) {
         final String resourceId = String.format("%s@%d", url, file.modified().getTime());
@@ -347,13 +380,16 @@ public class FilesMCP {
     }
 
     /**
-     * Creates a list of {@link TextContent} items for a collection of Nextcloud files,
-     * excluding directories and files that fail the {@link #isVisibleFile(NextCloudFile)}
+     * Creates a list of {@link TextContent} items for a collection of Nextcloud
+     * files,
+     * excluding directories and files that fail the
+     * {@link #isVisibleFile(NextCloudFile)}
      * check.
      *
      * @param url   the Nextcloud WebDAV path prefix (passed through to
      *              {@link #textContentFrom(String, NextCloudFile)}).
-     * @param files the files to convert; directories (paths ending with {@code /}) are
+     * @param files the files to convert; directories (paths ending with {@code /})
+     *              are
      *              skipped automatically.
      * @return a list of visible file content items, never {@code null}.
      */
@@ -455,18 +491,23 @@ public class FilesMCP {
     /**
      * Serialises a list of diff deltas into a unified (git-style) patch string.
      *
-     * <p>The output follows the standard unified diff format:
+     * <p>
+     * The output follows the standard unified diff format:
+     * 
      * <pre>
      * --- fileName1
      * +++ fileName2
-     * @@ -&lt;src-pos&gt;,&lt;src-size&gt; +&lt;tgt-pos&gt;,&lt;tgt-size&gt; @@
+     * &#64;@ -&lt;src-pos&gt;,&lt;src-size&gt; +&lt;tgt-pos&gt;,&lt;tgt-size&gt; @@
      * -removed line
      * +added line
      * </pre>
      *
-     * @param deltas    the list of change deltas produced by {@link com.github.difflib.DiffUtils}.
-     * @param fileName1 label for the original file (used in the {@code ---} header line).
-     * @param fileName2 label for the modified file (used in the {@code +++} header line).
+     * @param deltas    the list of change deltas produced by
+     *                  {@link com.github.difflib.DiffUtils}.
+     * @param fileName1 label for the original file (used in the {@code ---} header
+     *                  line).
+     * @param fileName2 label for the modified file (used in the {@code +++} header
+     *                  line).
      * @return the complete unified diff as a string.
      */
     private static String deltasToGitPatch(List<AbstractDelta<String>> deltas, String fileName1, String fileName2) {
@@ -792,14 +833,16 @@ public class FilesMCP {
     }
 
     /**
-     * Converts a single embedding match into a JSON-encoded {@link TextContent} item
+     * Converts a single embedding match into a JSON-encoded {@link TextContent}
+     * item
      * suitable for returning in a tool response.
      *
-     * <p>The JSON object contains two fields:
+     * <p>
+     * The JSON object contains two fields:
      * <ul>
-     *   <li>{@code score} — the cosine-similarity score (0.0–1.0) between the query
-     *       embedding and the matched segment.</li>
-     *   <li>{@code text} — the raw text of the matched segment from the file.</li>
+     * <li>{@code score} — the cosine-similarity score (0.0–1.0) between the query
+     * embedding and the matched segment.</li>
+     * <li>{@code text} — the raw text of the matched segment from the file.</li>
      * </ul>
      *
      * @param em the embedding match to convert.
