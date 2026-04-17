@@ -47,7 +47,6 @@ public interface NextcloudLoginFlowRestClient {
     @Path("ocs/v2.php/core/apppassword")
     @Produces(MediaType.APPLICATION_XML)
     @ClientHeaderParam(name = "OCS-APIREQUEST", value = "true")
-    Response deleteAppPassword(@HeaderParam("User-Agent") String userAgent,
-            @HeaderParam("Authorization") String authorization);
+    Response deleteAppPassword(@HeaderParam("Authorization") String authorization);
 
 }

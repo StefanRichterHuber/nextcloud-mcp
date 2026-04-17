@@ -12,7 +12,7 @@ public interface NextcloudConfig {
     String url();
 
     /**
-     * Name of this applicaition (required to get the correct app password for the
+     * Name of this application (required to get the correct app password for the
      * nextcloud rest api).
      *
      * @return

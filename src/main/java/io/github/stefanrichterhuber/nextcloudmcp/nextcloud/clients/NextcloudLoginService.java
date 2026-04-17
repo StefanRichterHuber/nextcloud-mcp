@@ -2,6 +2,7 @@ package io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
@@ -160,5 +161,60 @@ public class NextcloudLoginService {
         } catch (Exception e) {
             result.completeExceptionally(new LoginFLowFailedException("Unexpected error during login flow", e));
         }
+    }
+
+    /**
+     * Deletes an App password
+     * <br>
+     * Always returns true, since 'If a non 200 status code is returned the client
+     * should still proceed with removing the account.'
+     * 
+     * @param user        Nextcloud user
+     * @param appPassword Nextcloud password
+     * @param server      Nextcloud server
+     */
+    public boolean deleteUserAccount(String user, String appPassword, String server) {
+        final NextcloudLoginFlowRestClient loginFlowClient = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(server))
+                .followRedirects(true)
+                .build(NextcloudLoginFlowRestClient.class);
+
+        final String valueToEncode = user + ":" + appPassword;
+        final String authHeader = "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
+
+        final Response r = loginFlowClient.deleteAppPassword(authHeader);
+        if (r.getStatus() == 200) {
+            log.infof("Successfully deleted app password for user %s", user);
+        } else {
+            log.errorf("Failed to deleted app password for user %s -> consider account deleted anyway", user);
+        }
+        // If a non 200 status code is returned the client should still proceed with
+        // removing the account.
+        return true;
+    }
+
+    /**
+     * Deletes an App password on the configured server
+     * <br>
+     * Always returns true, since 'If a non 200 status code is returned the client
+     * should still proceed with removing the account.'
+     * 
+     * @param user        Nextcloud user
+     * @param appPassword Nextcloud password
+     */
+    public boolean deleteUserAccount(String user, String appPassword) {
+        return deleteUserAccount(user, appPassword, config.url());
+    }
+
+    /**
+     * Deletes an App password on the configured server
+     * <br>
+     * Always returns true, since 'If a non 200 status code is returned the client
+     * should still proceed with removing the account.'
+     * 
+     * @param credentials Nextcloud user credentials
+     */
+    public boolean deleteUserAccount(NextcloudUserCredentials credentials) {
+        return deleteUserAccount(credentials.loginName(), credentials.appPassword(), credentials.server());
     }
 }

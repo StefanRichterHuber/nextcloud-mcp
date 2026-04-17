@@ -135,12 +135,6 @@
         </dependency>
         <dependency>
             <groupId>org.mvnpm</groupId>
-            <artifactId>lit</artifactId>
-            <version>3.3.2</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mvnpm</groupId>
             <artifactId>bootstrap</artifactId>
             <version>5.3.8</version>
             <scope>provided</scope>
