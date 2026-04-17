@@ -72,7 +72,6 @@ Additional settings are controlled via `src/main/resources/application.propertie
 | :--- | :--- | :--- |
 | `app.user-repository.file` | `users.json` | Path to the JSON file that persists user credentials and access configuration |
 | `app.root-url` | `http://localhost:8080` | Root URL (fallback if `APP_ROOT_URL` is not set) |
-| `app.mcp.app.inline-resources` | `true` | Inline static resources into MCP App HTML responses. Required for Claude AI. |
 | `nextcloud.app-name` | `mcp-server` | App name used when requesting Nextcloud app passwords |
 
 ### User Data
