@@ -1,5 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudmcp.nextcloud;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -19,9 +20,10 @@ import com.github.sardine.model.Multistatus;
 import com.github.sardine.report.SardineReport;
 
 import biweekly.Biweekly;
+import biweekly.ICalVersion;
 import biweekly.ICalendar;
+import biweekly.io.text.ICalWriter;
 import io.github.stefanrichterhuber.nextcloudmcp.auth.NextcloudAuthProvider;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.NextcloudContactService.Addressbook;
 import jakarta.annotation.Nonnull;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -73,17 +75,91 @@ public class NextcloudCalendarService {
         return result;
     }
 
-    public record WebDavCalendar(String href, String etag, ICalendar cal) {
+    public record WebDavCalendar(String href, String etag, String name, ICalendar cal) {
 
     }
 
     /**
-     * Fetches all {@link ICalendar}s within the give time range
+     * Creates a calendar entry in the given calendar
+     * 
+     * @param calendar Calendar to create the entry in
+     * @param cal      Calendar entry to create
+     * @throws IOException
+     */
+    public void createCalendarEntry(Calendar webDavCalendar, ICalendar cal) throws IOException {
+        if (webDavCalendar == null) {
+            throw new IllegalArgumentException("WebDavCalendar cannot be null");
+        }
+        createCalendarEntry(webDavCalendar.name(), cal);
+    }
+
+    /**
+     * Creates a calendar entry in the given calendar
+     * 
+     * @param calendar Name of the calendar to create the entry in
+     * @param cal      Calendar entry to create
+     * @throws IOException
+     */
+    public void createCalendarEntry(String calendar, ICalendar cal) throws IOException {
+        if (calendar == null || calendar.isBlank()) {
+            throw new IllegalArgumentException("Calendar name cannot be null or blank");
+        }
+        if (cal == null) {
+            throw new IllegalArgumentException("Calendar entry cannot be null");
+        }
+        final ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        try (ICalWriter writer = new ICalWriter(bos, ICalVersion.V2_0);) {
+            writer.write(cal);
+        }
+        final String user = authProvider.getUser();
+        final String target = String.format("%s/remote.php/dav/calendars/%s/%s/", authProvider.getServer(), user,
+                calendar);
+
+        sardine.put(target, bos.toByteArray(), "text/calendar; charset=utf-8");
+    }
+
+    /**
+     * Deletes a calendar entry in the given calendar
+     * 
+     * @param calendar Calendar to delete the entry from
+     * @param cal      Calendar entry to delete
+     * @throws IOException
+     */
+    public void deleteCalendarEntry(Calendar calendar, ICalendar cal) throws IOException {
+        if (calendar == null) {
+            throw new IllegalArgumentException("WebDavCalendar cannot be null");
+        }
+        deleteCalendarEntry(calendar.name(), cal.getUid().getValue());
+    }
+
+    /**
+     * Deletes a calendar entry in the given calendar
+     * 
+     * @param calendar Name of the calendar to delete the entry from
+     * @param uid      UID of the calendar entry to delete
+     * @throws IOException
+     */
+    public void deleteCalendarEntry(String calendar, String uid) throws IOException {
+        if (calendar == null || calendar.isBlank()) {
+            throw new IllegalArgumentException("Calendar name cannot be null or blank");
+        }
+        if (uid == null || uid.isBlank()) {
+            throw new IllegalArgumentException("UID cannot be null or blank");
+        }
+        final String user = authProvider.getUser();
+        final String target = String.format("%s/remote.php/dav/calendars/%s/%s/%s.ics", authProvider.getServer(),
+                user, calendar, uid);
+
+        sardine.delete(target);
+    }
+
+    /**
+     * Fetches all WebDavCalendar within the give time range
      * 
      * @param calendar Calendar to fetch
      * @param start    Start of the time range
      * @param end      Ende of the time range
-     * @return List of {@link ICalendar}
+     * @return List of {@link WebDavCalendar}
      * @throws IOException
      * @see https://github.com/mangstadt/biweekly
      */
@@ -97,12 +173,12 @@ public class NextcloudCalendarService {
     }
 
     /**
-     * Fetches all {@link ICalendar}s within the give time range
+     * Fetches all WebDavCalendars within the give time range
      * 
      * @param calendar Name of the calendar
      * @param start    Start of the time range
      * @param end      Ende of the time range
-     * @return List of {@link ICalendar}
+     * @return List of {@link WebDavCalendar}
      * @throws IOException
      * @see https://github.com/mangstadt/biweekly
      */
@@ -146,6 +222,7 @@ public class NextcloudCalendarService {
                 final List<WebDavCalendar> result = new ArrayList<>();
                 for (var response : multistatus.getResponse()) {
                     final String href = response.getHref().get(0);
+                    final String name = href.substring(href.lastIndexOf("/") + 1);
                     final String etag = response.getPropstat().stream().map(ps -> ps.getProp()).map(p -> p.getGetetag())
                             .findFirst().map(et -> et.getContent().get(0)).orElse(null);
 
@@ -159,7 +236,7 @@ public class NextcloudCalendarService {
                             .filter(n -> n != null && !n.isBlank()) //
                             .map(n -> Biweekly.parse(n)) //
                             .flatMap(p -> p.all().stream()) //
-                            .map(c -> new WebDavCalendar(href, etag, c)) //
+                            .map(c -> new WebDavCalendar(href, etag, name, c)) //
                             .collect(Collectors.toList()));
 
                 }
