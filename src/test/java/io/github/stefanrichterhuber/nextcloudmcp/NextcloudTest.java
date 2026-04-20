@@ -17,7 +17,7 @@ import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.patch.Patch;
 import com.github.difflib.patch.PatchFailedException;
 
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.NextcloudService;
+import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.FileQueryResult;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextCloudFile;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.search.Condition;
@@ -78,7 +78,7 @@ public class NextcloudTest {
                         """;
 
     @Inject
-    NextcloudService service;
+    NextcloudFileService service;
 
     @Test
     public void searchFilesTest() {
