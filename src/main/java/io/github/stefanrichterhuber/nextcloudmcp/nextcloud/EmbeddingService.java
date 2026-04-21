@@ -22,7 +22,7 @@ import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextCloudFile;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextCloudFile;
 import jakarta.activation.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;

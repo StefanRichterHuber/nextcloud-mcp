@@ -67,6 +67,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-smallrye-fault-tolerance</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.github.stefanrichterhuber</groupId>
+            <artifactId>nextcloudlib</artifactId>
+            <version>1.0.0</version>
+        </dependency>
 
         <dependency>
             <groupId>io.quarkus</groupId>

@@ -1,5 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudmcp.auth;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

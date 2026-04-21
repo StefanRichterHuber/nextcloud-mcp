@@ -1,5 +1,6 @@
 package io.github.stefanrichterhuber.nextcloudmcp.nextcloud.mcp;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,9 +12,9 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository.UserAccessConfig;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextcloudUserCredentials;
 import io.quarkiverse.mcp.server.MetaField;
 import io.quarkiverse.mcp.server.MetaKey;
 import io.quarkiverse.mcp.server.Resource;
@@ -87,18 +88,24 @@ public class ConfigMCP {
      * {@link #toUserAccessConfig()} converts them to the typed
      * {@link UserAccessConfig} record expected by the repository.
      *
-     * @param rootFolder   the root folder path restriction (may be empty).
-     * @param filePatterns comma-separated glob patterns (e.g.
-     *                     {@code "*.md,*.txt"}).
-     * @param contentText  string representation of a boolean
-     *                     ({@code "true"/"false"}).
-     * @param contentImage string representation of a boolean
-     *                     ({@code "true"/"false"}).
-     * @param contentAudio string representation of a boolean
-     *                     ({@code "true"/"false"}).
+     * @param rootFolder          the root folder path restriction (may be empty).
+     * @param filePatterns        comma-separated glob patterns (e.g.
+     *                            {@code "*.md,*.txt"}).
+     * @param contentText         string representation of a boolean
+     *                            ({@code "true"/"false"}).
+     * @param contentImage        string representation of a boolean
+     *                            ({@code "true"/"false"}).
+     * @param contentAudio        string representation of a boolean
+     *                            ({@code "true"/"false"}).
+     * @param calendarReadAccess  string representation of a boolean
+     *                            ({@code "true"/"false"}).
+     * @param calendarWriteAccess string representation of a boolean
+     *                            ({@code "true"/"false"}).
+     * @param contactAccess       string representation of a boolean
+     *                            ({@code "true"/"false"}).
      */
     private record ConfigFromApp(String rootFolder, String filePatterns, String contentText, String contentImage,
-            String contentAudio) {
+            String contentAudio, String calendarReadAccess, String calendarWriteAccess, String contactAccess) {
 
         /**
          * Converts the raw string form data into a typed {@link UserAccessConfig}.
@@ -110,11 +117,18 @@ public class ConfigMCP {
          * @return the equivalent {@link UserAccessConfig} ready for persistence.
          */
         public UserAccessConfig toUserAccessConfig() {
-            Set<String> patterns = Set.of(filePatterns.split(","));
-            boolean textContent = Boolean.parseBoolean(contentText);
-            boolean imageContent = Boolean.parseBoolean(contentImage);
-            boolean audioContent = Boolean.parseBoolean(contentAudio);
-            return new UserAccessConfig(rootFolder, patterns, textContent, imageContent, audioContent);
+            final Set<String> patterns = filePatterns != null && !filePatterns.isEmpty()
+                    ? Set.of(filePatterns.split(","))
+                    : Collections.emptySet();
+            final boolean textContent = contentText != null ? Boolean.parseBoolean(contentText) : false;
+            final boolean imageContent = contentImage != null ? Boolean.parseBoolean(contentImage) : false;
+            final boolean audioContent = contentAudio != null ? Boolean.parseBoolean(contentAudio) : false;
+            final boolean calendarRead = calendarReadAccess != null ? Boolean.parseBoolean(calendarReadAccess) : false;
+            final boolean calendarWrite = calendarWriteAccess != null ? Boolean.parseBoolean(calendarWriteAccess)
+                    : false;
+            final boolean contact = contactAccess != null ? Boolean.parseBoolean(contactAccess) : false;
+            return new UserAccessConfig(rootFolder, patterns, textContent, imageContent, audioContent, calendarRead,
+                    calendarWrite, contact);
         }
     }
 
@@ -198,7 +212,7 @@ public class ConfigMCP {
     public ToolResponse config() {
         assertUserLoggedIn();
         final UserAccessConfig accessConfig = userRepository.getAccessConfigForCurrentUser()
-                .orElse(new UserAccessConfig(null, null, false, false, false));
+                .orElse(new UserAccessConfig(null, null, false, false, false, false, false, false));
 
         try {
             return ToolResponse.success(objectMapper.writeValueAsString(accessConfig));
