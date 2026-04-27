@@ -66,8 +66,10 @@ public class FileBasedUserRepository implements UserRepository {
      */
     @PostConstruct
     void init() {
+        log.infof("Storage file path (APP_USER_REPOSITORY_FILE): %s", storageFilePath);
         try {
             if (storageFilePath.getParent() != null) {
+
                 Files.createDirectories(storageFilePath.getParent());
             }
             loadUsers();
@@ -92,7 +94,7 @@ public class FileBasedUserRepository implements UserRepository {
                     users.putAll(loaded);
                 }
             }
-            log.debugf("Loaded %d users from %s", users.size(), storageFilePath);
+            log.infof("Loaded %d users from %s", users.size(), storageFilePath);
         }
     }
 
@@ -144,8 +146,11 @@ public class FileBasedUserRepository implements UserRepository {
     public void saveCredentialsForUser(String name, NextcloudUserCredentials credentials) throws Exception {
         users.compute(name, (k, v) -> {
             if (v == null) {
+                log.infof("Added credentials for new user %s -> Nextcloud user %s", name, credentials.loginName());
                 return new UserModel(credentials, null);
             } else {
+                log.infof("Added new credentials for existing user %s -> Nextcloud user %s", name,
+                        credentials.loginName());
                 return new UserModel(credentials, v.accessConfig);
             }
         });
@@ -173,8 +178,10 @@ public class FileBasedUserRepository implements UserRepository {
     public void saveAccessConfigForUser(String name, UserAccessConfig config) throws Exception {
         users.compute(name, (k, v) -> {
             if (v == null) {
+                log.infof("Added access config for new user %s", name);
                 return new UserModel(null, config);
             } else {
+                log.infof("Added new access config for existing user %s", name);
                 return new UserModel(v.credentials, config);
             }
         });
