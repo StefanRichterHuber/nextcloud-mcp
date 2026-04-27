@@ -22,7 +22,7 @@ import dev.langchain4j.store.embedding.EmbeddingSearchRequest;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextCloudFile;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import jakarta.activation.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Produces;
@@ -58,7 +58,7 @@ public class EmbeddingService {
      * @return
      * @throws IOException
      */
-    public InMemoryEmbeddingStore<TextSegment> createInMemoryEmbeddingStoreForNextcloudFile(NextCloudFile file)
+    public InMemoryEmbeddingStore<TextSegment> createInMemoryEmbeddingStoreForNextcloudFile(NextcloudFile file)
             throws IOException {
         final InMemoryEmbeddingStore<TextSegment> embeddingStore = new InMemoryEmbeddingStore<>();
         if (file != null) {
@@ -85,7 +85,7 @@ public class EmbeddingService {
      * @return Document created / null if no document found
      * @throws IOException
      */
-    public Document createDocumentFromNextcloudFile(NextCloudFile file) throws IOException {
+    public Document createDocumentFromNextcloudFile(NextcloudFile file) throws IOException {
         if (file != null) {
             final DataSource ds = file.dataSource();
             final String contentType = ds.getContentType();
@@ -123,7 +123,7 @@ public class EmbeddingService {
      * @return
      * @throws IOException
      */
-    public List<TextSegment> createTextSegmentsFromNextcloudFile(NextCloudFile file) throws IOException {
+    public List<TextSegment> createTextSegmentsFromNextcloudFile(NextcloudFile file) throws IOException {
         final Document doc = createDocumentFromNextcloudFile(file);
         if (doc != null) {
             final DocumentSplitter splitter = DocumentSplitters.recursive(800, 400);
