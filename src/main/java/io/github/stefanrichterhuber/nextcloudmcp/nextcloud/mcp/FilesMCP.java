@@ -31,13 +31,16 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.store.embedding.EmbeddingMatch;
 import dev.langchain4j.store.embedding.EmbeddingSearchResult;
 import dev.langchain4j.store.embedding.inmemory.InMemoryEmbeddingStore;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCommentService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileDiffService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.Comment;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchQuery;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchResult;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.EmbeddingService;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.FulltextSearchQuery;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.FulltextSearchResult;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextCloudFile;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextcloudUserCredentials;
 import io.quarkiverse.mcp.server.BlobResourceContents;
 import io.quarkiverse.mcp.server.Content;
 import io.quarkiverse.mcp.server.MetaKey;
@@ -79,7 +82,7 @@ import jakarta.inject.Inject;
  * </ol>
  *
  * <p>
- * Visibility of files is governed by {@link #isVisibleFile(NextCloudFile)}:
+ * Visibility of files is governed by {@link #isVisibleFile(NextcloudFile)}:
  * only files
  * whose MIME type appears in {@link #visibleContentTypes} are surfaced to the
  * LLM. Per-user
@@ -91,6 +94,8 @@ import jakarta.inject.Inject;
 public class FilesMCP {
     public static final String TOOL_SEARCH_FILES_NAME = "search-files";
     public static final String TOOL_SEARCH_FILE_NAME = "search-in-file";
+    public static final String TOOL_GET_FILE_COMMENTS = "get-file-comments";
+    public static final String TOOL_ADD_FILE_COMMENT = "add-file-comment";
     public static final String TOOL_CREATE_FILE_DIFF_NAME = "create-file-diff";
     public static final String TOOL_DELETE_FILE_NAME = "delete-file";
     public static final String TOOL_WRITE_FILE_NAME = "write-file";
@@ -112,6 +117,12 @@ public class FilesMCP {
 
     @Inject
     TikaParser parser;
+
+    @Inject
+    NextcloudFileDiffService diffService;
+
+    @Inject
+    NextcloudCommentService commentService;
 
     @Inject
     Logger logger;
@@ -141,7 +152,7 @@ public class FilesMCP {
      *         resource.
      */
     @SuppressWarnings("unused")
-    private ResourceInfo registerNextcloudFileResource(String url, NextCloudFile file) {
+    private ResourceInfo registerNextcloudFileResource(String url, NextcloudFile file) {
 
         final String resourceId = String.format("%s@%d", url, file.modified().getTime());
         final ResourceInfo existing = resourceManager.getResource(resourceId);
@@ -183,7 +194,7 @@ public class FilesMCP {
      *         content.
      * @throws ToolCallException if the file content cannot be read.
      */
-    private ResourceResponse getNextcloudFileResource(String url, NextCloudFile file) {
+    private ResourceResponse getNextcloudFileResource(String url, NextcloudFile file) {
         // Check if Text or blob and set content correctly
         DataSource dataSource = file.dataSource();
         try (InputStream is = dataSource.getInputStream()) {
@@ -229,7 +240,7 @@ public class FilesMCP {
      * @param file the Nextcloud file whose metadata should be collected.
      * @return a map of {@link MetaKey} to metadata values, never {@code null}.
      */
-    private Map<MetaKey, Object> getNextcloudFileMetadata(NextCloudFile file) {
+    private Map<MetaKey, Object> getNextcloudFileMetadata(NextcloudFile file) {
         Map<MetaKey, Object> metadata = new HashMap<>();
         if (file.fileId() != null)
             metadata.put(MetaKey.from("nextcloud/fileId"), file.fileId());
@@ -267,7 +278,7 @@ public class FilesMCP {
      * @return {@code true} if the file should be shown to the LLM, {@code false}
      *         otherwise.
      */
-    private boolean isVisibleFile(NextCloudFile file) {
+    private boolean isVisibleFile(NextcloudFile file) {
         // TODO make this configurable through some ui or config file, e.g. to also show
         // certain file types that are currently hidden
         DataSource dataSource = file.dataSource();
@@ -314,7 +325,7 @@ public class FilesMCP {
      *
      * <p>
      * This overload operates on a plain file path string rather than a full
-     * {@link NextCloudFile} object (search results do not carry a data source).
+     * {@link NextcloudFile} object (search results do not carry a data source).
      * Per-user file-pattern filtering is not yet implemented here.
      *
      * @param file the Nextcloud file path to evaluate (e.g.
@@ -374,7 +385,7 @@ public class FilesMCP {
      * @return a {@link TextContent} carrying the resource ID and Nextcloud
      *         metadata.
      */
-    private Content textContentFrom(String url, NextCloudFile file) {
+    private Content textContentFrom(String url, NextcloudFile file) {
         final String resourceId = String.format("%s@%d", url, file.modified().getTime());
         return new TextContent(resourceId, getNextcloudFileMetadata(file), null);
     }
@@ -383,24 +394,65 @@ public class FilesMCP {
      * Creates a list of {@link TextContent} items for a collection of Nextcloud
      * files,
      * excluding directories and files that fail the
-     * {@link #isVisibleFile(NextCloudFile)}
+     * {@link #isVisibleFile(NextcloudFile)}
      * check.
      *
      * @param url   the Nextcloud WebDAV path prefix (passed through to
-     *              {@link #textContentFrom(String, NextCloudFile)}).
+     *              {@link #textContentFrom(String, NextcloudFile)}).
      * @param files the files to convert; directories (paths ending with {@code /})
      *              are
      *              skipped automatically.
      * @return a list of visible file content items, never {@code null}.
      */
-    private List<Content> textContentFrom(String url, Iterable<NextCloudFile> files) {
+    private List<Content> textContentFrom(String url, Iterable<NextcloudFile> files) {
         List<Content> resourceLinks = new ArrayList<>();
-        for (NextCloudFile file : files) {
+        for (NextcloudFile file : files) {
             if (!file.path().endsWith("/") && isVisibleFile(file)) { // skip directories
                 resourceLinks.add(textContentFrom(url, file));
             }
         }
         return resourceLinks;
+    }
+
+    /**
+     * Loads a file with an optional reviision marker (like @[timestamp] or @latest)
+     * attached to the file name
+     * 
+     * @param filePath Path of the file
+     * @parma latestOnly only the latest revision of the file is supported at all
+     * @return
+     * @throws IOException
+     */
+    private NextcloudFile readFileByPathWithRevision(String filePath, boolean latestOnly) throws IOException {
+        if (filePath == null || filePath.isBlank()) {
+            throw new ToolCallException("File path cannot be empty");
+        }
+        Date revision = null;
+        if (filePath.contains("@")) {
+            String[] parts = filePath.split("@");
+            filePath = parts[0];
+            if (parts.length >= 2) {
+                String revPart = parts[parts.length - 1];
+                if (latestOnly || revPart.equals("latest")) {
+                    revision = null; // latest revision
+                } else {
+                    try {
+                        revision = new Date(Long.parseLong(revPart));
+                    } catch (NumberFormatException e) {
+                        throw new ToolCallException(String
+                                .format("Invalid revision format: '%s'. Use '@latest' or '@<timestamp>'.", revPart));
+                    }
+                }
+            }
+        }
+
+        final NextcloudFile file = nextcloudService.getFileByModifyDate(filePath, revision);
+        if (file == null || !isVisibleFile(file)) {
+            throw new ToolCallException(String.format("File '%s' with modified date %d not found", filePath,
+                    revision != null ? revision.getTime() : 0));
+        }
+
+        return file;
     }
 
     @Tool(name = TOOL_LIST_FILES_NAME, description = TOOL_LIST_FILES_DESCRIPTION, annotations = @Tool.Annotations(title = "List files", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
@@ -409,9 +461,9 @@ public class FilesMCP {
         assertUserLoggedIn();
 
         try {
-            final List<NextCloudFile> files = nextcloudService.listFiles(path, -1);
+            final List<NextcloudFile> files = nextcloudService.listFiles(path, -1);
             List<Content> content = new ArrayList<>();
-            for (NextCloudFile file : files) {
+            for (NextcloudFile file : files) {
                 if (!file.path().endsWith("/") && isVisibleFile(file)) { // skip directories
                     content.add(textContentFrom(file.path(), file));
                 }
@@ -435,12 +487,15 @@ public class FilesMCP {
             String[] parts = filePath.split("@");
             filePath = parts[0];
         }
-
-        final List<NextCloudFile> revisions = nextcloudService.listFileRevisions(filePath);
-        if (revisions == null || revisions.isEmpty()) {
-            return ToolResponse.error(String.format("No revisions found for file '%s'", filePath));
+        try {
+            final List<NextcloudFile> revisions = nextcloudService.listFileRevisions(filePath);
+            if (revisions == null || revisions.isEmpty()) {
+                return ToolResponse.error(String.format("No revisions found for file '%s'", filePath));
+            }
+            return ToolResponse.success(textContentFrom(filePath, revisions));
+        } catch (IOException e) {
+            throw new ToolCallException(e);
         }
-        return ToolResponse.success(textContentFrom(filePath, revisions));
     }
 
     @Tool(name = "get-file-content", description = "Gets the content of a file as text or blob resource. User must be logged in to use this tool.", annotations = @Tool.Annotations(title = "Get file content", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
@@ -448,39 +503,17 @@ public class FilesMCP {
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath) {
         assertUserLoggedIn();
 
-        if (filePath == null || filePath.isBlank()) {
-            return ToolResponse.error("File path cannot be empty");
-        }
-        Date revision = null;
-        if (filePath.contains("@")) {
-            String[] parts = filePath.split("@");
-            filePath = parts[0];
-            if (parts[1].equals("latest")) {
-                revision = null; // latest revision
-            } else {
-                try {
-                    revision = new Date(Long.parseLong(parts[1]));
-                } catch (NumberFormatException e) {
-                    return ToolResponse.error("Invalid revision format. Use '@latest' or '@<timestamp>'.");
-                }
+        try {
+            final NextcloudFile file = readFileByPathWithRevision(filePath, false);
+            // Read file
+            try (InputStream is = file.dataSource().getInputStream()) {
+                byte[] content = is.readAllBytes();
+                Charset cs = detectCharset(content).orElse(StandardCharsets.UTF_8);
+                String text = new String(content, cs);
+
+                return ToolResponse.success(new TextContent(text));
+
             }
-        }
-
-        final NextCloudFile file = nextcloudService.getFileByModifyDate(filePath, revision);
-        if (file == null || !isVisibleFile(file)) {
-            return ToolResponse
-                    .error(String.format("File '%s' with modified date %d not found", filePath,
-                            revision != null ? revision.getTime() : 0));
-        }
-
-        // Read file
-        try (InputStream is = file.dataSource().getInputStream()) {
-            byte[] content = is.readAllBytes();
-            Charset cs = detectCharset(content).orElse(StandardCharsets.UTF_8);
-            String text = new String(content, cs);
-
-            return ToolResponse.success(new TextContent(text));
-
         } catch (IOException e) {
             throw new ToolCallException(e);
         }
@@ -535,63 +568,19 @@ public class FilesMCP {
             @ToolArg(name = "secondFile", description = "The path of the second file to create the diff from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String secondFile) {
         assertUserLoggedIn();
 
-        if (firstFile == null || firstFile.isBlank()) {
-            return ToolResponse.error("File path of first file cannot be empty");
-        }
-        if (secondFile == null || secondFile.isBlank()) {
-            return ToolResponse.error("File path of second file cannot be empty");
-        }
+        try {
+            final NextcloudFile firstFileContent = readFileByPathWithRevision(firstFile, false);
+            final NextcloudFile secondFileContent = readFileByPathWithRevision(secondFile, false);
 
-        Date firstRevision = null;
-        if (firstFile.contains("@")) {
-            String[] parts = firstFile.split("@");
-            firstFile = parts[0];
-            if (parts[1].equals("latest")) {
-                firstRevision = null; // latest revision
-            } else {
-                try {
-                    firstRevision = new Date(Long.parseLong(parts[1]));
-                } catch (NumberFormatException e) {
-                    return ToolResponse
-                            .error("Invalid revision format for first file. Use '@latest' or '@<timestamp>'.");
-                }
-            }
+            Patch<String> patch = diffService.getContentPatch(firstFileContent, secondFileContent);
+            final String gitPatch = deltasToGitPatch(patch.getDeltas(),
+                    String.format("%s", firstFile),
+                    String.format("%s", secondFile));
+
+            return ToolResponse.success(gitPatch);
+        } catch (IOException e) {
+            throw new ToolCallException(e);
         }
-
-        Date secondRevision = null;
-        if (secondFile.contains("@")) {
-            String[] parts = secondFile.split("@");
-            secondFile = parts[0];
-            if (parts[1].equals("latest")) {
-                secondRevision = null; // latest revision
-            } else {
-                try {
-                    secondRevision = new Date(Long.parseLong(parts[1]));
-                } catch (NumberFormatException e) {
-                    return ToolResponse
-                            .error("Invalid revision format for second file. Use '@latest' or '@<timestamp>'.");
-                }
-            }
-        }
-
-        final NextCloudFile firstFileContent = nextcloudService.getFileByModifyDate(firstFile, firstRevision);
-        final NextCloudFile secondFileContent = nextcloudService.getFileByModifyDate(secondFile, secondRevision);
-
-        if (firstFileContent == null || !isVisibleFile(firstFileContent)) {
-            return ToolResponse.error(String.format("First file '%s' with modified date %d not found", firstFile,
-                    firstRevision != null ? firstRevision.getTime() : 0));
-        }
-        if (secondFileContent == null || !isVisibleFile(secondFileContent)) {
-            return ToolResponse.error(String.format("Second file '%s' with modified date %d not found", secondFile,
-                    secondRevision != null ? secondRevision.getTime() : 0));
-        }
-
-        Patch<String> patch = nextcloudService.getContentPatch(firstFileContent, secondFileContent);
-        final String gitPatch = deltasToGitPatch(patch.getDeltas(),
-                String.format("%s@%d", firstFile, firstRevision != null ? firstRevision.getTime() : 0),
-                String.format("%s@%d", secondFile, secondRevision != null ? secondRevision.getTime() : 0));
-
-        return ToolResponse.success(gitPatch);
     }
 
     @Tool(name = TOOL_DELETE_FILE_NAME, title = "Deletes a file", description = "Deletes the latest revision of a file", annotations = @Tool.Annotations(title = "Delete file", destructiveHint = true, readOnlyHint = false, idempotentHint = false, openWorldHint = false))
@@ -603,16 +592,16 @@ public class FilesMCP {
             String[] parts = filePath.split("@");
             filePath = parts[0];
         }
-        final NextCloudFile org = nextcloudService.getFile(filePath);
-        if (org == null) {
-            return ToolResponse
-                    .error(String.format("File '%s' can not be deleted", filePath));
-        }
-        if (!isVisibleFile(org)) {
-            return ToolResponse
-                    .error(String.format("File '%s' can not be deleted", filePath));
-        }
         try {
+            final NextcloudFile org = nextcloudService.getFile(filePath);
+            if (org == null) {
+                return ToolResponse
+                        .error(String.format("File '%s' can not be deleted", filePath));
+            }
+            if (!isVisibleFile(org)) {
+                return ToolResponse
+                        .error(String.format("File '%s' can not be deleted", filePath));
+            }
             nextcloudService.deleteFile(filePath, org.etag(), (String) null);
         } catch (IOException e) {
             logger.errorf(e, "File '%s' can not be deleted", filePath);
@@ -635,7 +624,7 @@ public class FilesMCP {
             filePath = parts[0];
         }
         try {
-            final NextCloudFile org = nextcloudService.getFile(filePath);
+            final NextcloudFile org = nextcloudService.getFile(filePath);
             final Charset cs = Optional.ofNullable(charset).filter(c -> !c.isBlank()).map(Charset::forName)
                     .orElse(StandardCharsets.UTF_8);
             final byte[] rawContent = content.getBytes(cs);
@@ -651,7 +640,7 @@ public class FilesMCP {
             }
 
             nextcloudService.uploadFile(filePath, contentType, new ByteArrayInputStream(rawContent));
-            final NextCloudFile newFile = nextcloudService.getFile(filePath);
+            final NextcloudFile newFile = nextcloudService.getFile(filePath);
             final String resourceId = String.format("%s@%d", filePath, newFile.modified().getTime());
             return ToolResponse.success("Successfully written file. New revision: " + resourceId);
         } catch (IOException e) {
@@ -673,29 +662,20 @@ public class FilesMCP {
             @ToolArg(name = "fuziness", description = "Fuzz factor for the patch. Roughly how many lines the patch definition can be off from the actual source", defaultValue = "4") int fuzziness) {
         assertUserLoggedIn();
 
-        if (filePath.contains("@")) {
-            String[] parts = filePath.split("@");
-            filePath = parts[0];
-        }
-
-        final NextCloudFile file = nextcloudService.getFileByModifyDate(filePath, null);
-        if (file == null || !isVisibleFile(file)) {
-            return ToolResponse
-                    .error(String.format("File '%s' not found", filePath));
-        }
-
-        Patch<String> parsedPatch = null;
-        if (patch != null && !patch.isBlank()) {
-            final List<String> patchContent = Arrays.asList(patch.split("\n"));
-            parsedPatch = UnifiedDiffUtils.parseUnifiedDiff(patchContent);
-        } else {
-            parsedPatch = new Patch<String>();
-        }
-
         try {
-            nextcloudService.applyContentPatch(file, parsedPatch, fuzziness);
+            final NextcloudFile file = readFileByPathWithRevision(filePath, true);
+
+            Patch<String> parsedPatch = null;
+            if (patch != null && !patch.isBlank()) {
+                final List<String> patchContent = Arrays.asList(patch.split("\n"));
+                parsedPatch = UnifiedDiffUtils.parseUnifiedDiff(patchContent);
+            } else {
+                parsedPatch = new Patch<String>();
+            }
+
+            diffService.applyContentPatch(file, parsedPatch, fuzziness);
             // Read back file to get latest revision
-            final NextCloudFile patchedFile = this.nextcloudService.getFileByModifyDate(filePath, null);
+            final NextcloudFile patchedFile = readFileByPathWithRevision(filePath, true);
             final String resourceId = String.format("%s@%d", filePath, patchedFile.modified().getTime());
             return ToolResponse.success("Successfully patched file. New revision: " + resourceId);
 
@@ -775,6 +755,38 @@ public class FilesMCP {
 
     }
 
+    @Tool(name = TOOL_GET_FILE_COMMENTS, title = "Get all comments attachted to a file", description = "Get all comments users attachted to a file", annotations = @Tool.Annotations(title = "Get file comments", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    public ToolResponse getFileComments(
+            @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath) {
+        assertUserLoggedIn();
+
+        try {
+            final NextcloudFile file = readFileByPathWithRevision(filePath, true);
+            List<Comment> comments = this.commentService.getCommentsOfFile(file);
+            return ToolResponse.success(om.writeValueAsString(comments));
+        } catch (IOException e) {
+            logger.errorf(e, "File '%s' with modified datecould not be read", filePath);
+            return ToolResponse
+                    .error(String.format("File '%s' with modified date could not be read", filePath));
+        }
+    }
+
+    @Tool(name = TOOL_ADD_FILE_COMMENT, title = "Add comment to file", description = "Add comment to file", annotations = @Tool.Annotations(title = "Add file comment", destructiveHint = false, readOnlyHint = false, idempotentHint = false, openWorldHint = false))
+    public ToolResponse getFileComments(
+            @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath,
+            @ToolArg(name = "comment", description = "Comment to add to the file") String comment) {
+        assertUserLoggedIn();
+        try {
+            final NextcloudFile file = readFileByPathWithRevision(filePath, true);
+            this.commentService.addCommentToFile(file, comment);
+            return ToolResponse.success("Comment added successfully");
+        } catch (IOException e) {
+            logger.errorf(e, "File '%s' with modified date could not be commented", filePath);
+            return ToolResponse
+                    .error(String.format("File '%s' with modified date could not be commented", filePath));
+        }
+    }
+
     @Tool(name = TOOL_SEARCH_FILE_NAME, title = "Search within file", description = "Uses a local embedding store to do a semantic search on the file (only available for text files!)", annotations = @Tool.Annotations(title = "Create file diff", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
     public ToolResponse searchInFile(
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath,
@@ -782,33 +794,9 @@ public class FilesMCP {
             @ToolArg(name = "results", defaultValue = "20", description = "Maximum number of results expected. Defaults to 20") Integer results,
             @ToolArg(name = "threshold", defaultValue = "0.6", description = "Threshold for the score (from 0.0 to 1.0) to ensure only relevant results are transmited. Defaults to 0.6") Double threshold) {
 
-        assertUserLoggedIn();
-        if (filePath == null || filePath.isBlank()) {
-            return ToolResponse.error("File path cannot be empty");
-        }
-        Date revision = null;
-        if (filePath.contains("@")) {
-            String[] parts = filePath.split("@");
-            filePath = parts[0];
-            if (parts[1].equals("latest")) {
-                revision = null; // latest revision
-            } else {
-                try {
-                    revision = new Date(Long.parseLong(parts[1]));
-                } catch (NumberFormatException e) {
-                    return ToolResponse.error("Invalid revision format. Use '@latest' or '@<timestamp>'.");
-                }
-            }
-        }
-
-        final NextCloudFile file = nextcloudService.getFileByModifyDate(filePath, revision);
-        if (file == null || !isVisibleFile(file)) {
-            return ToolResponse
-                    .error(String.format("File '%s' with modified date %d not found", filePath,
-                            revision != null ? revision.getTime() : 0));
-        }
-
         try {
+            final NextcloudFile file = this.readFileByPathWithRevision(filePath, false);
+
             final InMemoryEmbeddingStore<TextSegment> embeddingStore = embeddingService
                     .createInMemoryEmbeddingStoreForNextcloudFile(file);
 
@@ -822,12 +810,12 @@ public class FilesMCP {
                     .toList();
 
             return ToolResponse.success(matches);
-        } catch (IOException e) {
-            logger.errorf(e, "File '%s' with modified date %d could not be indexed", filePath,
-                    revision != null ? revision.getTime() : 0);
+        } catch (
+
+        IOException e) {
+            logger.errorf(e, "File '%s' could not be indexed", filePath);
             return ToolResponse
-                    .error(String.format("File '%s' with modified date %d could not be indexed", filePath,
-                            revision != null ? revision.getTime() : 0));
+                    .error(String.format("File '%s' could not be indexed", filePath));
         }
 
     }

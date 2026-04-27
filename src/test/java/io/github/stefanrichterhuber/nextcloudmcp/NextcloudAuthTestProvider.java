@@ -2,7 +2,7 @@ package io.github.stefanrichterhuber.nextcloudmcp;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
-import io.github.stefanrichterhuber.nextcloudmcp.auth.NextcloudAuthProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;

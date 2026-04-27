@@ -114,6 +114,8 @@ This file is written and read at runtime. For production deployments it should b
 | `apply-file-patch` | Apply a git-style patch to an existing file |
 | `search-files` | Full-text search across all accessible files |
 | `search-in-file` | Semantic search within a single file using local embeddings |
+| `get-file-comments` | Returns all comments attached to the file |
+| `add-file-comment` | Adds a comment to a file |
 
 The `search-in-file` tool uses a locally running embedding model (`all-MiniLM-L6-v2-q`) via [LangChain4j](https://docs.langchain4j.dev/) to split and embed file content, enabling semantic similarity search without any external service.
 

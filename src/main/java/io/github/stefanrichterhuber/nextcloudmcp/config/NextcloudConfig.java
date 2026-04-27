@@ -1,8 +1,12 @@
 package io.github.stefanrichterhuber.nextcloudmcp.config;
 
+import io.quarkus.runtime.annotations.ConfigPhase;
+import io.quarkus.runtime.annotations.ConfigRoot;
 import io.smallrye.config.ConfigMapping;
+import io.smallrye.config.WithDefault;
 
 @ConfigMapping(prefix = "nextcloud")
+@ConfigRoot(phase = ConfigPhase.RUN_TIME)
 public interface NextcloudConfig {
     /**
      * Root url of the nextcloud installation (e.g. 'https://nextcloud.example.com')
@@ -17,6 +21,6 @@ public interface NextcloudConfig {
      *
      * @return
      */
-
+    @WithDefault("quarkus-nextcloud-lib")
     String appName();
 }

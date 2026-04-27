@@ -7,8 +7,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextcloudUserCredentials;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -40,7 +40,7 @@ public class InMemoryUserRepository implements UserRepository {
     @PostConstruct
     void init() {
         UserModel um = new UserModel(new NextcloudUserCredentials(user, password, url),
-                new UserAccessConfig("/", Set.of("*.md"), true, true, true));
+                new UserAccessConfig("/", Set.of("*.md"), true, true, true, true, true, true));
         models.put(user, um);
     }
 

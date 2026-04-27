@@ -6,9 +6,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.jboss.logging.Logger;
 
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudLoginService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.NextcloudLoginService;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.clients.models.NextcloudUserCredentials;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolCallException;
@@ -75,6 +76,9 @@ public class LoginMCP {
     @Inject
     Logger log;
 
+    @Inject
+    NextcloudConfig config;
+
     private final Map<String, NextcloudLoginService.LoginFlowJob> ongoingLoginFlows = new ConcurrentHashMap<>();
 
     @Tool(name = TOOL_CHECK_FOR_LOGIN_NAME, description = TOOL_CHECK_FOR_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Check if the user is logged in", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
@@ -124,7 +128,7 @@ public class LoginMCP {
                             + existingJob.loginUrl());
         }
 
-        final NextcloudLoginService.LoginFlowJob job = loginService.initiateLoginFlow();
+        final NextcloudLoginService.LoginFlowJob job = loginService.initiateLoginFlow(config.url(), config.appName());
         final String message = "Please request the user to click the following URL to login to Nextcloud: "
                 + job.loginUrl();
         progress.notificationBuilder().setMessage(message).setProgress(0).build().send();
