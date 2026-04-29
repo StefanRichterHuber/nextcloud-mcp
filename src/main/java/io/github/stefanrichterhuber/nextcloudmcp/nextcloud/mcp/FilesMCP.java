@@ -43,6 +43,7 @@ import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.EmbeddingService;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.quarkiverse.mcp.server.BlobResourceContents;
 import io.quarkiverse.mcp.server.Content;
+import io.quarkiverse.mcp.server.McpLog;
 import io.quarkiverse.mcp.server.MetaKey;
 import io.quarkiverse.mcp.server.ResourceManager;
 import io.quarkiverse.mcp.server.ResourceManager.ResourceInfo;
@@ -457,7 +458,8 @@ public class FilesMCP {
 
     @Tool(name = TOOL_LIST_FILES_NAME, description = TOOL_LIST_FILES_DESCRIPTION, annotations = @Tool.Annotations(title = "List files", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
     public ToolResponse listFiles(
-            @ToolArg(name = "path", description = "The path to list files from. For example, '/' for the root directory or '/Documents' for the Documents folder.") String path) {
+            @ToolArg(name = "path", description = "The path to list files from. For example, '/' for the root directory or '/Documents' for the Documents folder.") String path,
+            McpLog log) {
         assertUserLoggedIn();
 
         try {
@@ -500,17 +502,19 @@ public class FilesMCP {
 
     @Tool(name = "get-file-content", description = "Gets the content of a file as text or blob resource. User must be logged in to use this tool.", annotations = @Tool.Annotations(title = "Get file content", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
     public ToolResponse getFileContent(
-            @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath) {
+            @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath,
+            McpLog log) {
         assertUserLoggedIn();
 
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, false);
+            log.info("Found file %s, start downloading ...", filePath);
             // Read file
             try (InputStream is = file.dataSource().getInputStream()) {
                 byte[] content = is.readAllBytes();
                 Charset cs = detectCharset(content).orElse(StandardCharsets.UTF_8);
                 String text = new String(content, cs);
-
+                log.info("Found file %s, file downloaded.", filePath);
                 return ToolResponse.success(new TextContent(text));
 
             }
