@@ -9,6 +9,7 @@ import org.jboss.logging.Logger;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudLoginService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
+import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
@@ -82,6 +83,7 @@ public class LoginMCP {
     private final Map<String, NextcloudLoginService.LoginFlowJob> ongoingLoginFlows = new ConcurrentHashMap<>();
 
     @Tool(name = TOOL_CHECK_FOR_LOGIN_NAME, description = TOOL_CHECK_FOR_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Check if the user is logged in", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse checkForLogin() {
         final Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
         if (credentials.isPresent()) {
@@ -94,6 +96,7 @@ public class LoginMCP {
     }
 
     @Tool(name = TOOL_DELETE_LOGIN_NAME, description = TOOL_DELETE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Delete Nextcloud login", destructiveHint = true, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse deleteLogin() {
         final String user = securityIdentity.getPrincipal().getName();
         // Cancel login flow
@@ -118,6 +121,7 @@ public class LoginMCP {
     }
 
     @Tool(name = TOOL_INITIATE_LOGIN_NAME, description = TOOL_INITIATE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Start the login process at nextcloud", destructiveHint = false, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse initiateLogin(Progress progress) {
         final String user = securityIdentity.getPrincipal().getName();
 

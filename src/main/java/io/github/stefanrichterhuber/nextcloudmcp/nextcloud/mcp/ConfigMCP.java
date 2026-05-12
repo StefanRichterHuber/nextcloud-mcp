@@ -7,12 +7,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudmcp.config.AppConfig;
+import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
+import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository.UserAccessConfig;
 import io.quarkiverse.mcp.server.MetaField;
@@ -59,16 +60,6 @@ import jakarta.inject.Inject;
  * {@link UserRepository}.</li>
  * </ol>
  *
- * <h2>Resource inlining</h2>
- * Claude.ai currently cannot load external scripts or stylesheets inside MCP
- * Apps
- * (see <a href="https://github.com/anthropics/claude-ai-mcp/issues/40">issue
- * #40</a>).
- * When {@code app.mcp.app.inline-resources} is {@code true} (the default), the
- * Quarkus
- * Web Bundler JS and CSS bundles are fetched once from the server at first use
- * and inlined
- * directly into the HTML document returned by {@link #configResources()}.
  */
 @ApplicationScoped
 public class ConfigMCP {
@@ -136,8 +127,7 @@ public class ConfigMCP {
     Template config;
 
     @Inject
-    @ConfigProperty(name = "app.root-url")
-    String appRootUrl;
+    AppConfig appConfig;
 
     @Inject
     SecurityIdentity securityIdentity;
@@ -147,6 +137,9 @@ public class ConfigMCP {
 
     @Inject
     UserRepository userRepository;
+
+    @Inject
+    NextcloudConfig nextcloudConfig;
 
     /**
      * Asserts that the user is logged in with Nextcloud credentials. If not, throws
@@ -172,11 +165,13 @@ public class ConfigMCP {
      */
     @Resource(uri = RESOURCE_CONFIG_UI_NAME)
     ResourceContents configResources() throws Exception {
+        final String appRootUrl = appConfig.rootUrl();
         final Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
         final String nextcloudUser = credentials.map(c -> c.loginName()).orElse("<No login for Nextcloud>");
         final TemplateInstance instance = config
                 .data("nextcloudUser", nextcloudUser)
-                .data("href", appRootUrl);
+                .data("href", appRootUrl)
+                .data("nextloudUrl", nextcloudConfig.url());
 
         String html = instance.render();
 
@@ -209,6 +204,7 @@ public class ConfigMCP {
      */
     @MetaField(name = "ui", type = MetaField.Type.JSON, value = CONFIG_RESOURCE_META)
     @Tool(name = TOOL_CONFIG_TOOL_NAME, description = "MCP App to manage the configuration for the Nextcloud MCP plugin")
+    @MCPAudit
     public ToolResponse config() {
         assertUserLoggedIn();
         final UserAccessConfig accessConfig = userRepository.getAccessConfigForCurrentUser()
@@ -228,6 +224,7 @@ public class ConfigMCP {
      * @return
      */
     @Tool(name = TOOL_SET_CONFIG_NAME, description = "Set the access configuration for the Nextcloud MCP plugin. Only used internally by the config UI MCP App.")
+    @MCPAudit
     public ToolResponse setAccessConfig(String config) {
         try {
             assertUserLoggedIn();

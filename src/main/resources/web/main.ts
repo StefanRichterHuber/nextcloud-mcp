@@ -58,7 +58,7 @@ patternIn.addEventListener("blur", () => {
 const form = document.getElementById("scanForm") as HTMLFormElement;
 const rootInput = document.getElementById("rootFolder") as HTMLInputElement;
 const checkboxes = document.querySelectorAll(".content-check") as NodeListOf<HTMLInputElement>;
-const contentErr = document.getElementById("content-error");
+const contentErr = document.getElementById("content-error") as HTMLDivElement;
 
 function validateContentTypes() {
     const checked = [...checkboxes].some((c) => c.checked);

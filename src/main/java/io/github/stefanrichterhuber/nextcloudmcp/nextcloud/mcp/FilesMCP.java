@@ -40,6 +40,7 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchRe
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.EmbeddingService;
+import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.quarkiverse.mcp.server.BlobResourceContents;
 import io.quarkiverse.mcp.server.Content;
@@ -457,6 +458,7 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_LIST_FILES_NAME, description = TOOL_LIST_FILES_DESCRIPTION, annotations = @Tool.Annotations(title = "List files", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse listFiles(
             @ToolArg(name = "path", description = "The path to list files from. For example, '/' for the root directory or '/Documents' for the Documents folder.") String path,
             McpLog log) {
@@ -478,6 +480,7 @@ public class FilesMCP {
     }
 
     @Tool(name = "get-file-revisions", description = "Gets the revisions of a file in the user's Nextcloud account. User must be logged in to use this tool.", annotations = @Tool.Annotations(title = "Get file revisions", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse getFileRevisions(
             @ToolArg(name = "filePath", description = "The path of the file to get revisions from. For example, '/Documents/file.txt'.") String filePath) {
         assertUserLoggedIn();
@@ -501,6 +504,7 @@ public class FilesMCP {
     }
 
     @Tool(name = "get-file-content", description = "Gets the content of a file as text or blob resource. User must be logged in to use this tool.", annotations = @Tool.Annotations(title = "Get file content", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse getFileContent(
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath,
             McpLog log) {
@@ -567,6 +571,7 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_CREATE_FILE_DIFF_NAME, description = "Creates a diff between two files in the git patch format. User must be logged in to use this tool.", annotations = @Tool.Annotations(title = "Create file diff", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse createFileDiff(
             @ToolArg(name = "firstFile", description = "The path of the first file to create the diff from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String firstFile,
             @ToolArg(name = "secondFile", description = "The path of the second file to create the diff from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String secondFile) {
@@ -588,6 +593,7 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_DELETE_FILE_NAME, title = "Deletes a file", description = "Deletes the latest revision of a file", annotations = @Tool.Annotations(title = "Delete file", destructiveHint = true, readOnlyHint = false, idempotentHint = false, openWorldHint = false))
+    @MCPAudit
     public ToolResponse deleteFile(
             @ToolArg(name = "filePath", description = "The path of the file to delete. For example, '/Documents/file.txt'. Any revision date (using '@latest' or '@<timestamp>') added to the filename will be ignored and only the latest revision will be deleted!") String filePath) {
 
@@ -616,6 +622,7 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_WRITE_FILE_NAME, title = "Writes a text file", description = "Overwrites / Creates the latest revision of a textfile", annotations = @Tool.Annotations(title = "Write file", destructiveHint = true, readOnlyHint = false, idempotentHint = false, openWorldHint = false))
+    @MCPAudit
     public ToolResponse writeFile(
             @ToolArg(name = "filePath", description = "The path of the file to write. For example, '/Documents/file.txt'. Any revision date (using '@latest' or '@<timestamp>') added to the filename will be ignored and only the latest revision will be written!") String filePath,
             @ToolArg(name = "content", description = "New file content") String content,
@@ -660,6 +667,7 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_APPLY_FILE_PATCH_NAME, title = "Applies patch to text file", description = "Applies a git-style patch to the given latest(!) revision of a text file", annotations = @Tool.Annotations(title = "Apply file patch", destructiveHint = true, readOnlyHint = false, idempotentHint = false, openWorldHint = false))
+    @MCPAudit
     public ToolResponse applyPatch(
             @ToolArg(name = "filePath", description = "The path of the file to apply the patch. For example, '/Documents/file.txt'. Any revision date (using '@latest' or '@<timestamp>') added to the filename will be ignored and only the latest revision will be patche!") String filePath,
             @ToolArg(name = "patch", description = "Git-style patch to apply") String patch,
@@ -691,6 +699,7 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_SEARCH_FILES_NAME, title = "Fulltext search on all files", description = "Performs full text search on all files", annotations = @Tool.Annotations(title = "Search files", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse searchFiles(
             @ToolArg(name = "query", description = "Fulltext search query") String query,
             @ToolArg(name = "results", defaultValue = "20", description = "Maximum number of results to return. Defaults to '20'") Integer results) {
@@ -760,6 +769,7 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_GET_FILE_COMMENTS, title = "Get all comments attachted to a file", description = "Get all comments users attachted to a file", annotations = @Tool.Annotations(title = "Get file comments", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse getFileComments(
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath) {
         assertUserLoggedIn();
@@ -776,6 +786,8 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_ADD_FILE_COMMENT, title = "Add comment to file", description = "Add comment to file", annotations = @Tool.Annotations(title = "Add file comment", destructiveHint = false, readOnlyHint = false, idempotentHint = false, openWorldHint = false))
+
+    @MCPAudit
     public ToolResponse getFileComments(
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath,
             @ToolArg(name = "comment", description = "Comment to add to the file") String comment) {
@@ -792,6 +804,7 @@ public class FilesMCP {
     }
 
     @Tool(name = TOOL_SEARCH_FILE_NAME, title = "Search within file", description = "Uses a local embedding store to do a semantic search on the file (only available for text files!)", annotations = @Tool.Annotations(title = "Create file diff", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @MCPAudit
     public ToolResponse searchInFile(
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath,
             @ToolArg(name = "query", description = "Search query to perform on the embeddings of the file content") String query,

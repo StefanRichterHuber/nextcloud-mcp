@@ -12,12 +12,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudmcp.config.AppConfig;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -43,8 +43,7 @@ public class FileBasedUserRepository implements UserRepository {
     }
 
     @Inject
-    @ConfigProperty(name = "app.user-repository.file")
-    Path storageFilePath;
+    AppConfig appConfig;
 
     @Inject
     ObjectMapper objectMapper;
@@ -67,12 +66,13 @@ public class FileBasedUserRepository implements UserRepository {
     @PostConstruct
     void init() {
         try {
-            if (storageFilePath.getParent() != null) {
-                Files.createDirectories(storageFilePath.getParent());
+            if (appConfig.userRepository().file().getParent() != null) {
+                Files.createDirectories(appConfig.userRepository().file().getParent());
             }
             loadUsers();
         } catch (IOException e) {
-            log.errorf(e, "Failed to initialize FileBasedUserRepository using file %s", storageFilePath);
+            log.errorf(e, "Failed to initialize FileBasedUserRepository using file %s",
+                    appConfig.userRepository().file());
         }
     }
 
@@ -82,8 +82,8 @@ public class FileBasedUserRepository implements UserRepository {
      * @throws IOException if the file cannot be read or parsed.
      */
     private void loadUsers() throws IOException {
-        if (Files.exists(storageFilePath)) {
-            final byte[] content = Files.readAllBytes(storageFilePath);
+        if (Files.exists(appConfig.userRepository().file())) {
+            final byte[] content = Files.readAllBytes(appConfig.userRepository().file());
             if (content.length > 0) {
                 final Map<String, UserModel> loaded = objectMapper.readValue(content,
                         objectMapper.getTypeFactory().constructMapType(Map.class, String.class,
@@ -92,7 +92,7 @@ public class FileBasedUserRepository implements UserRepository {
                     users.putAll(loaded);
                 }
             }
-            log.debugf("Loaded %d users from %s", users.size(), storageFilePath);
+            log.debugf("Loaded %d users from %s", users.size(), appConfig.userRepository().file());
         }
     }
 
@@ -104,7 +104,8 @@ public class FileBasedUserRepository implements UserRepository {
      * @throws IOException if the file cannot be written.
      */
     private synchronized void saveUsers() throws IOException {
-        final Path tempFile = storageFilePath.resolveSibling(storageFilePath.getFileName() + ".tmp");
+        final Path tempFile = appConfig.userRepository().file()
+                .resolveSibling(appConfig.userRepository().file().getFileName() + ".tmp");
         try {
             final byte[] content = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(users);
             Files.write(tempFile, content);
@@ -120,10 +121,11 @@ public class FileBasedUserRepository implements UserRepository {
                 file.setWritable(true, true);
             }
 
-            Files.move(tempFile, storageFilePath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
-            log.debugf("User data successfully saved to %s", storageFilePath);
+            Files.move(tempFile, appConfig.userRepository().file(), StandardCopyOption.REPLACE_EXISTING,
+                    StandardCopyOption.ATOMIC_MOVE);
+            log.debugf("User data successfully saved to %s", appConfig.userRepository().file());
         } catch (IOException e) {
-            log.errorf(e, "Failed to save user data to file %s", storageFilePath);
+            log.errorf(e, "Failed to save user data to file %s", appConfig.userRepository().file());
             Files.deleteIfExists(tempFile);
             throw e;
         }

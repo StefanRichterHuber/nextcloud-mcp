@@ -21,6 +21,6 @@ public interface NextcloudConfig {
      *
      * @return
      */
-    @WithDefault("quarkus-nextcloud-lib")
+    @WithDefault("nextcloud-mcp")
     String appName();
 }

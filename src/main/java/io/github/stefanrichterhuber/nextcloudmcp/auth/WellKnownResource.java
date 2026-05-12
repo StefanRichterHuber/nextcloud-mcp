@@ -29,7 +29,7 @@ public class WellKnownResource {
     @PermitAll
     @Produces(MediaType.APPLICATION_JSON)
     public Map<String, Object> getOAuthProtectedResource() {
-        Map<String, Object> response = new HashMap<>();
+        final Map<String, Object> response = new HashMap<>();
         response.put("resource", rootUrl);
         response.put("authorization_servers", List.of(authServerUrl));
         response.put("scopes_supported", List.of("openid", "profile", "email", "groups"));
@@ -47,7 +47,7 @@ public class WellKnownResource {
     @Produces(MediaType.APPLICATION_JSON)
     @PermitAll
     public Map<String, Object> getOAuthProtectedResourceMcp() {
-        Map<String, Object> response = new HashMap<>();
+        final Map<String, Object> response = new HashMap<>();
         response.putAll(getOAuthProtectedResource());
         response.put("resource", rootUrl + "/mcp");
         return response;
