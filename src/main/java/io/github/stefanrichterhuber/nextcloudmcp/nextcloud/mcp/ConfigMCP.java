@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
@@ -203,18 +202,14 @@ public class ConfigMCP {
      * @return
      */
     @MetaField(name = "ui", type = MetaField.Type.JSON, value = CONFIG_RESOURCE_META)
-    @Tool(name = TOOL_CONFIG_TOOL_NAME, description = "MCP App to manage the configuration for the Nextcloud MCP plugin")
+    @Tool(name = TOOL_CONFIG_TOOL_NAME, title = "Configure Nextcloud MCP access settings", description = "MCP App to manage the configuration for the Nextcloud MCP plugin", structuredContent = true)
     @MCPAudit
-    public ToolResponse config() {
+    public UserAccessConfig config() {
         assertUserLoggedIn();
         final UserAccessConfig accessConfig = userRepository.getAccessConfigForCurrentUser()
                 .orElse(new UserAccessConfig(null, null, false, false, false, false, false, false));
 
-        try {
-            return ToolResponse.success(objectMapper.writeValueAsString(accessConfig));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to serialize config", e);
-        }
+        return accessConfig;
     }
 
     /**
@@ -223,18 +218,20 @@ public class ConfigMCP {
      * @param config JSON String containing the new restrictions
      * @return
      */
-    @Tool(name = TOOL_SET_CONFIG_NAME, description = "Set the access configuration for the Nextcloud MCP plugin. Only used internally by the config UI MCP App.")
+    @Tool(name = TOOL_SET_CONFIG_NAME, title = "Set Nextcloud MCP access settings", description = "Set the access configuration for the Nextcloud MCP plugin. Only used internally by the config UI MCP App.")
     @MCPAudit
-    public ToolResponse setAccessConfig(String config) {
+    public ToolResponse setAccessConfig(ConfigFromApp config) {
         try {
             assertUserLoggedIn();
-            ConfigFromApp configFromApp = objectMapper.readValue(config, ConfigFromApp.class);
-            userRepository.saveAccessConfigForCurrentUser(configFromApp.toUserAccessConfig());
+            userRepository.saveAccessConfigForCurrentUser(config.toUserAccessConfig());
 
             ToolResponse response = ToolResponse.success("Access configuration set to: " + config);
             return response;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize config", e);
+            if (e instanceof ToolCallException tce) {
+                throw tce;
+            }
+            throw new ToolCallException("Failed to set access configuration", e);
         }
 
     }

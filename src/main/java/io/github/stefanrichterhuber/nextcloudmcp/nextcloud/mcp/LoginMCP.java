@@ -82,7 +82,14 @@ public class LoginMCP {
 
     private final Map<String, NextcloudLoginService.LoginFlowJob> ongoingLoginFlows = new ConcurrentHashMap<>();
 
-    @Tool(name = TOOL_CHECK_FOR_LOGIN_NAME, description = TOOL_CHECK_FOR_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Check if the user is logged in", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    /**
+     * MCP tool: checks whether the current OIDC user already has valid Nextcloud
+     * app-password credentials stored in the {@link UserRepository}.
+     *
+     * @return success response if credentials are present; error response
+     *         (prompting the LLM to call {@code initiate-login}) if they are not
+     */
+    @Tool(name = TOOL_CHECK_FOR_LOGIN_NAME, title = "Check if the user is logged in", description = TOOL_CHECK_FOR_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Check if the user is logged in", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
     @MCPAudit
     public ToolResponse checkForLogin() {
         final Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
@@ -95,12 +102,27 @@ public class LoginMCP {
         }
     }
 
-    @Tool(name = TOOL_DELETE_LOGIN_NAME, description = TOOL_DELETE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Delete Nextcloud login", destructiveHint = true, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
+    /**
+     * MCP tool: revokes the current user's Nextcloud app-password and removes the
+     * stored credentials. Any in-progress Login Flow V2 session for the user is
+     * also cancelled.
+     *
+     * @return success response when credentials are removed (or were already
+     *         absent); error response if the Nextcloud server rejects the
+     *         revocation
+     * @throws ToolCallException if the credential store update fails after a
+     *                           successful remote revocation
+     */
+    @Tool(name = TOOL_DELETE_LOGIN_NAME, title = "Delete Nextcloud login", description = TOOL_DELETE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Delete Nextcloud login", destructiveHint = true, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
     @MCPAudit
     public ToolResponse deleteLogin() {
         final String user = securityIdentity.getPrincipal().getName();
         // Cancel login flow
-        ongoingLoginFlows.remove(user);
+        final NextcloudLoginService.LoginFlowJob job = ongoingLoginFlows.remove(user);
+        if (job != null) {
+            job.session().toCompletableFuture().cancel(false);
+        }
+
         // Cancel existing accounts
         final Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
         if (credentials.isPresent()) {
@@ -120,7 +142,22 @@ public class LoginMCP {
         }
     }
 
-    @Tool(name = TOOL_INITIATE_LOGIN_NAME, description = TOOL_INITIATE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Start the login process at nextcloud", destructiveHint = false, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
+    /**
+     * MCP tool: starts a Nextcloud Login Flow V2 session for the current OIDC user
+     * and returns the browser URL the user must open to authorise the request.
+     *
+     * <p>
+     * If a flow is already in progress for this user the existing login URL is
+     * returned immediately without starting a new session. Once the user authorises
+     * in the browser the resulting app-password is persisted via
+     * {@link UserRepository} and a final MCP progress notification (progress=100)
+     * is sent to the LLM. Failure or cancellation is reported the same way.
+     *
+     * @param progress MCP channel used to send intermediate notifications while
+     *                 polling for the app-password
+     * @return success response containing the login URL the user must visit
+     */
+    @Tool(name = TOOL_INITIATE_LOGIN_NAME, title = "Start the login process at nextcloud", description = TOOL_INITIATE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Start the login process at nextcloud", destructiveHint = false, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
     @MCPAudit
     public ToolResponse initiateLogin(Progress progress) {
         final String user = securityIdentity.getPrincipal().getName();

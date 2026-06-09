@@ -98,13 +98,12 @@ form.addEventListener("submit", async (e) => {
 
     const formData = new FormData(form);
 
-    var object = {};
-    formData.forEach((value, key) => object[key] = value);
-    var json = JSON.stringify(object);
+    var configObject = {};
+    formData.forEach((value, key) => configObject[key] = value);
 
     const result = await app.callServerTool({
         name: "set-access-config",
-        arguments: { config: json },
+        arguments: { config: configObject },
     });
 });
 
@@ -139,8 +138,7 @@ const app = new App({ name: "Configure Nextcloud MCP App", version: "1.0.0" });
 app.onerror = console.error;
 // Handle the initial tool result pushed by the host
 app.ontoolresult = (result) => {
-    const configText = result.content?.find((c) => c.type === "text")?.text;
-    const config = JSON.parse(configText) as ConfigFromServer;
+    const config = result.structuredContent as unknown as ConfigFromServer;
     if (config.rootFolder) {
         rootInput.value = config.rootFolder;
     }

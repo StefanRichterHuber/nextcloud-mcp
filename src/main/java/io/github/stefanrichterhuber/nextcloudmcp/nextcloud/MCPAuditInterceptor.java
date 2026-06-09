@@ -2,7 +2,10 @@ package io.github.stefanrichterhuber.nextcloudmcp.nextcloud;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudmcp.config.AppConfig;
 import io.quarkiverse.mcp.server.TextContent;
@@ -25,7 +28,10 @@ public class MCPAuditInterceptor {
     @Inject
     AppConfig config;
 
-    @SuppressWarnings("null")
+    @Inject
+    ObjectMapper objectMapper;
+
+    @SuppressWarnings({ "null" })
     @AroundInvoke
     Object logCall(InvocationContext context) throws Exception {
         if (config.audit().enabled()) {
@@ -35,7 +41,7 @@ public class MCPAuditInterceptor {
                 final List<Object> parameterValues = new ArrayList<>(context.getMethod().getParameterCount());
                 for (int i = 0; i < context.getParameters().length; i++) {
                     // Check for a ToolArg annotation
-                    ToolArg toolArg = Arrays.asList(context.getMethod().getParameterAnnotations()[i]).stream()
+                    final ToolArg toolArg = Arrays.asList(context.getMethod().getParameterAnnotations()[i]).stream()
                             .filter(a -> a instanceof ToolArg).map(a -> (ToolArg) a).findFirst().orElse(null);
                     if (toolArg != null) {
                         parameterAnnotations.add(toolArg);
@@ -52,7 +58,7 @@ public class MCPAuditInterceptor {
                                 startTime, endTime);
                     } else {
                         auditService.logCall(tool, parameterAnnotations, parameterValues, true,
-                                List.of(new TextContent("Success")), startTime,
+                                result instanceof Collection<?> resultList ? resultList : List.of(result), startTime,
                                 endTime);
                     }
                     return result;

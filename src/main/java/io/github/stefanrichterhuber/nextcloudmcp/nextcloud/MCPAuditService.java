@@ -12,11 +12,11 @@ import java.util.stream.Collectors;
 
 import org.jboss.logging.Logger;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.config.AppConfig;
-import io.quarkiverse.mcp.server.Content;
 import io.quarkiverse.mcp.server.TextContent;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
@@ -61,7 +61,7 @@ public class MCPAuditService {
      * @param endTime   invocation end time in epoch milliseconds
      */
     public void logCall(Tool tool, List<ToolArg> toolArgs, List<Object> argValues, boolean success,
-            Collection<? extends Content> content,
+            Collection<? extends Object> content,
             long startTime, long endTime) {
         if (config.audit().enabled()) {
             try {
@@ -109,12 +109,16 @@ public class MCPAuditService {
      * @return the (possibly truncated) text representation, or an empty string if
      *         no text content is present
      */
-    private String toolResponseContentsToMessage(Collection<? extends Content> contents) {
+    private String toolResponseContentsToMessage(Collection<? extends Object> contents) {
         String message = contents.stream()
-                .filter(c -> c instanceof TextContent)
-                .map(c -> (TextContent) c)
-                .map(c -> c.text())
-                .filter(c -> c != null)
+                .map(c -> {
+                    try {
+                        return c instanceof TextContent tc ? tc.text()
+                                : (c != null ? objectMapper.writeValueAsString(c) : "null");
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
                 .collect(Collectors.joining("\n"));
 
         // Limit message length

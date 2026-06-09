@@ -7,6 +7,7 @@ import java.util.Map;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import jakarta.annotation.security.PermitAll;
+import jakarta.inject.Inject;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -14,9 +15,11 @@ import jakarta.ws.rs.core.MediaType;
 
 @Path("/.well-known/")
 public class WellKnownResource {
+    @Inject
     @ConfigProperty(name = "app.root-url")
     String rootUrl;
 
+    @Inject
     @ConfigProperty(name = "quarkus.oidc.auth-server-url")
     String authServerUrl;
 
@@ -32,6 +35,7 @@ public class WellKnownResource {
         final Map<String, Object> response = new HashMap<>();
         response.put("resource", rootUrl);
         response.put("authorization_servers", List.of(authServerUrl));
+        response.put("resource_name", "Nextcloud MCP");
         response.put("scopes_supported", List.of("openid", "profile", "email", "groups"));
 
         response.put("resource_documentation", rootUrl + "/docs");

@@ -48,18 +48,21 @@ public class AuthorizeRedirectResource {
     /**
      * Base URL of the identity provider, e.g. https://auth.example.com
      */
+    @Inject
     @ConfigProperty(name = "quarkus.oidc.auth-server-url")
     String identityProviderBaseUrl;
 
     /**
      * Pre-registered client id
      */
+    @Inject
     @ConfigProperty(name = "quarkus.oidc.client-id")
     String clientId;
 
     /**
      * Pre-registered client secret
      */
+    @Inject
     @ConfigProperty(name = "quarkus.oidc.credentials.secret")
     String clientSecret;
 

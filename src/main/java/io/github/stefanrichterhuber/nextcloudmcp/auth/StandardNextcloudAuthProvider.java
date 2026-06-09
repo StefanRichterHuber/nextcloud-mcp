@@ -28,4 +28,22 @@ public class StandardNextcloudAuthProvider implements NextcloudAuthProvider {
                 .orElseThrow(() -> new IllegalStateException("No credentials found for current user")).server();
     }
 
+    @Override
+    public void setUser(String user) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setUser'");
+    }
+
+    @Override
+    public void setPassword(String password) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setPassword'");
+    }
+
+    @Override
+    public void setServer(String server) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setServer'");
+    }
+
 }

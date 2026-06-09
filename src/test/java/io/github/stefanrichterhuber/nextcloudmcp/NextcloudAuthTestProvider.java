@@ -40,4 +40,19 @@ public class NextcloudAuthTestProvider implements NextcloudAuthProvider {
         return url;
     }
 
+    @Override
+    public void setUser(String user) {
+        this.user = user;
+    }
+
+    @Override
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    @Override
+    public void setServer(String server) {
+        this.url = server;
+    }
+
 }
