@@ -10,9 +10,9 @@ import java.util.Set;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudmcp.audit.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.config.AppConfig;
 import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository.UserAccessConfig;
 import io.quarkiverse.mcp.server.MetaField;

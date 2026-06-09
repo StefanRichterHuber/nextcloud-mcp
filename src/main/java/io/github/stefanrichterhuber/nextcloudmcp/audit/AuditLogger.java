@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudmcp.nextcloud;
+package io.github.stefanrichterhuber.nextcloudmcp.audit;
 
 /**
  * Implementations of this interface for logging AuditLogEntry objects

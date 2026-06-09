@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudmcp.nextcloud;
+package io.github.stefanrichterhuber.nextcloudmcp.audit;
 
 import java.io.File;
 import java.io.IOException;

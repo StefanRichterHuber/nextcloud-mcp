@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudmcp.nextcloud;
+package io.github.stefanrichterhuber.nextcloudmcp.audit;
 
 import java.util.ArrayList;
 import java.util.Arrays;

@@ -39,8 +39,8 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchRe
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SystemTag;
+import io.github.stefanrichterhuber.nextcloudmcp.audit.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.EmbeddingService;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.mcp.FilesMCP.SearchFileResults.SearchFileResult;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.mcp.FilesMCP.SearchinFileResult.SearchMatch;

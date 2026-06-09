@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudmcp.nextcloud;
+package io.github.stefanrichterhuber.nextcloudmcp.audit;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;

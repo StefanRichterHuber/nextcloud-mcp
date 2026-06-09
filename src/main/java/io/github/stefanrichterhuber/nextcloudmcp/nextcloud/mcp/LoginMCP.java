@@ -8,8 +8,8 @@ import org.jboss.logging.Logger;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudLoginService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudmcp.audit.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;

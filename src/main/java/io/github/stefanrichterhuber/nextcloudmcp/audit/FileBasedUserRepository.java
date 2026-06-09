@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudmcp.nextcloud;
+package io.github.stefanrichterhuber.nextcloudmcp.audit;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.config.AppConfig;
+import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
