@@ -1,4 +1,4 @@
-package io.github.stefanrichterhuber.nextcloudmcp.audit;
+package io.github.stefanrichterhuber.nextcloudmcp.nextcloud;
 
 import java.io.File;
 import java.io.IOException;
@@ -18,7 +18,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudmcp.config.AppConfig;
-import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -188,5 +187,16 @@ public class FileBasedUserRepository implements UserRepository {
     public void saveAccessConfigForCurrentUser(UserAccessConfig config) throws Exception {
         final String sub = securityIdentity.getPrincipal().getName();
         saveAccessConfigForUser(sub, config);
+    }
+
+    @Override
+    public void removeCredentialsForCurrentUser() throws Exception {
+        final String sub = securityIdentity.getPrincipal().getName();
+        removeCredentialsForUser(sub);
+    }
+
+    @Override
+    public void removeCredentialsForUser(String userId) throws Exception {
+        saveCredentialsForUser(userId, null);
     }
 }

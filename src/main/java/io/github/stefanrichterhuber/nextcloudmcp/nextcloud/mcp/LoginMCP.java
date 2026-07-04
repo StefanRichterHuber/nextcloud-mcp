@@ -129,7 +129,7 @@ public class LoginMCP {
             final boolean success = loginService.deleteUserAccount(credentials.get());
             if (success) {
                 try {
-                    userRepository.saveCredentialsForCurrentUser(null);
+                    userRepository.removeCredentialsForCurrentUser();
                 } catch (Exception e) {
                     throw new ToolCallException("Failed to delete credentials for user", e);
                 }
@@ -159,39 +159,25 @@ public class LoginMCP {
      */
     @Tool(name = TOOL_INITIATE_LOGIN_NAME, title = "Start the login process at nextcloud", description = TOOL_INITIATE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Start the login process at nextcloud", destructiveHint = false, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
     @MCPAudit
-    public ToolResponse initiateLogin(Progress progress) {
+    public ToolResponse initiateLogin() {
         final String user = securityIdentity.getPrincipal().getName();
 
-        final NextcloudLoginService.LoginFlowJob existingJob = ongoingLoginFlows.get(user);
-        if (existingJob != null) {
-            return ToolResponse
-                    .success("Login flow already in progress. Please click the following URL to login to Nextcloud: "
-                            + existingJob.loginUrl());
-        }
-
-        final NextcloudLoginService.LoginFlowJob job = loginService.initiateLoginFlow(config.url(), config.appName());
-        final String message = "Please request the user to click the following URL to login to Nextcloud: "
-                + job.loginUrl();
-        progress.notificationBuilder().setMessage(message).setProgress(0).build().send();
-        job.session().thenAccept(credentials -> {
-            ongoingLoginFlows.remove(user);
-            progress.notificationBuilder().setMessage(
-                    "Login successful! Nextcloud credentials have been saved. You can now use other tools that require Nextcloud authentication. If you want to login with a different account, please repeat the login process with tool '"
-                            + TOOL_INITIATE_LOGIN_NAME + "'.")
-                    .setProgress(100).build().send();
-            try {
-                userRepository.saveCredentialsForUser(user, credentials);
-            } catch (Exception e) {
-                log.errorf(e, "Failed to save new nextcloud credentials for user: %s", user);
-            }
-        }).exceptionally(e -> {
-            ongoingLoginFlows.remove(user);
-            log.errorf(e, "Login process failed for user %s", user);
-            progress.notificationBuilder().setMessage(
-                    "An error occurred while logging in to Nextcloud. Please repeat the login process with tool '"
-                            + TOOL_INITIATE_LOGIN_NAME + "'.")
-                    .setProgress(100).build().send();
-            return null;
+        final NextcloudLoginService.LoginFlowJob job = ongoingLoginFlows.computeIfAbsent(user, u -> {
+            final NextcloudLoginService.LoginFlowJob j = loginService.initiateLoginFlow(config.url(),
+                    config.appName());
+            j.session().thenAccept(credentials -> {
+                ongoingLoginFlows.remove(user);
+                try {
+                    userRepository.saveCredentialsForUser(user, credentials);
+                } catch (Exception e) {
+                    log.errorf(e, "Failed to save new nextcloud credentials for user: %s", user);
+                }
+            }).exceptionally(e -> {
+                ongoingLoginFlows.remove(user);
+                log.errorf(e, "Login process failed for user %s", user);
+                return null;
+            });
+            return j;
         });
         return ToolResponse
                 .success("Please request the user to click the following URL to login to Nextcloud: " + job.loginUrl());

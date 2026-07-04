@@ -16,7 +16,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
-import io.github.stefanrichterhuber.nextcloudmcp.audit.AuditLogEntry.CallArg;
 import io.github.stefanrichterhuber.nextcloudmcp.config.AppConfig;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.quarkiverse.mcp.server.TextContent;

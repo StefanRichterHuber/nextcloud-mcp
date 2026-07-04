@@ -133,4 +133,20 @@ public interface UserRepository {
      * @throws Exception if the configuration cannot be persisted.
      */
     void saveAccessConfigForCurrentUser(UserAccessConfig config) throws Exception;
+
+    /**
+     * Removes the Nextcloud credentials for the currently authenticated user, if
+     * any exist.
+     * 
+     * @throws Exception
+     */
+    void removeCredentialsForCurrentUser() throws Exception;
+
+    /**
+     * Removes the Nextcloud credentials for the given user, if any exist.
+     * 
+     * @param userId the OIDC subject / username.
+     * @throws Exception
+     */
+    void removeCredentialsForUser(String userId) throws Exception;
 }

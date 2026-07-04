@@ -139,7 +139,7 @@ public class FilesMCP {
 
     // TODO make configurable per user or through some ui or config file, e.g. to
     // also show certain file types that are currently hidden
-    private List<String> visibleContentTypes = List.of("text/", "application/json", "application/xml",
+    private static final List<String> visibleContentTypes = List.of("text/", "application/json", "application/xml",
             "application/javascript",
             "application/xhtml+xml");
 
@@ -376,6 +376,23 @@ public class FilesMCP {
     }
 
     /**
+     * Utility method to validate a file path string, throwing a ToolCallException
+     * if the path is invalid. Currently checks for emptiness and for paths starting
+     * with {@code ..} to prevent directory traversal attacks.
+     * 
+     * @param filePath the file path to validate
+     * @throws ToolCallException
+     */
+    private void assertFilePathValid(String filePath) throws ToolCallException {
+        if (filePath == null || filePath.isBlank()) {
+            throw new ToolCallException("File path must not be empty");
+        }
+        if (filePath.contains("..")) {
+            throw new ToolCallException("File path must not contain '..' to prevent directory traversal");
+        }
+    }
+
+    /**
      * Loads a file with an optional reviision marker (like @[timestamp] or @latest)
      * attached to the file name
      * 
@@ -385,9 +402,7 @@ public class FilesMCP {
      * @throws IOException
      */
     private NextcloudFile readFileByPathWithRevision(String filePath, boolean latestOnly) throws IOException {
-        if (filePath == null || filePath.isBlank()) {
-            throw new ToolCallException("File path cannot be empty");
-        }
+        assertFilePathValid(filePath);
         Date revision = null;
         if (filePath.contains("@")) {
             String[] parts = filePath.split("@");
@@ -436,10 +451,9 @@ public class FilesMCP {
     @Tool(name = TOOL_LIST_FILES_NAME, title = "List files in folder", description = TOOL_LIST_FILES_DESCRIPTION, structuredContent = true, annotations = @Tool.Annotations(title = "List files", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
     @MCPAudit
     public FileListResult listFiles(
-            @ToolArg(name = "path", description = "The path to list files from. For example, '/' for the root directory or '/Documents' for the Documents folder.") String path,
-            McpLog log) {
+            @ToolArg(name = "path", description = "The path to list files from. For example, '/' for the root directory or '/Documents' for the Documents folder.") String path) {
         assertUserLoggedIn();
-
+        assertFilePathValid(path);
         try {
             final List<NextcloudFile> files = nextcloudService.listFiles(path, -1).stream()
                     .filter(file -> !file.path().endsWith("/")).filter(this::isVisibleFile).toList();
@@ -455,13 +469,8 @@ public class FilesMCP {
             @ToolArg(name = "filePath", description = "The path of the file to get revisions from. For example, '/Documents/file.txt'.") String filePath) {
         assertUserLoggedIn();
 
-        if (filePath == null || filePath.isBlank()) {
-            throw new ToolCallException("File path cannot be empty");
-        }
-        if (filePath.contains("@")) {
-            String[] parts = filePath.split("@");
-            filePath = parts[0];
-        }
+        assertFilePathValid(filePath);
+        filePath = stripRevision(filePath);
         try {
             final List<NextcloudFile> revisions = nextcloudService.listFileRevisions(filePath);
             if (revisions == null || revisions.isEmpty()) {
@@ -479,15 +488,16 @@ public class FilesMCP {
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath,
             McpLog log) {
         assertUserLoggedIn();
+        assertFilePathValid(filePath);
 
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, false);
             log.info("Found file %s, start downloading ...", filePath);
             // Read file
             try (InputStream is = file.dataSource().getInputStream()) {
-                byte[] content = is.readAllBytes();
-                Charset cs = detectCharset(content).orElse(StandardCharsets.UTF_8);
-                String text = new String(content, cs);
+                final byte[] content = is.readAllBytes();
+                final Charset cs = detectCharset(content).orElse(StandardCharsets.UTF_8);
+                final String text = new String(content, cs);
                 log.info("Found file %s, file downloaded.", filePath);
                 return ToolResponse.success(new TextContent(text));
 
@@ -495,8 +505,6 @@ public class FilesMCP {
         } catch (IOException e) {
             throw new ToolCallException(e);
         }
-
-        // return ToolResponse.success(contentFrom(filePath, file));
     }
 
     /**
@@ -523,21 +531,39 @@ public class FilesMCP {
      */
     private static String deltasToGitPatch(List<AbstractDelta<String>> deltas, String fileName1, String fileName2) {
         StringBuilder sb = new StringBuilder();
-        sb.append("--- " + fileName1 + "\n");
-        sb.append("+++ " + fileName2 + "\n");
+        sb.append("--- ").append(fileName1).append("\n");
+        sb.append("+++ ").append(fileName2).append("\n");
 
         for (AbstractDelta<String> delta : deltas) {
-            sb.append("@@ -" + (delta.getSource().getPosition() + 1) + "," + delta.getSource().size() + " +"
-                    + (delta.getTarget().getPosition() + 1) + "," + delta.getTarget().size() + " @@\n");
+            sb.append("@@ -").append(delta.getSource().getPosition() + 1).append(",").append(delta.getSource().size())
+                    .append(" +").append(delta.getTarget().getPosition() + 1).append(",")
+                    .append(delta.getTarget().size()).append(" @@\n");
             for (String line : delta.getSource().getLines()) {
-                sb.append("-" + line + "\n");
+                sb.append("-").append(line).append("\n");
             }
             for (String line : delta.getTarget().getLines()) {
-                sb.append("+" + line + "\n");
+                sb.append("+").append(line).append("\n");
             }
         }
 
         return sb.toString();
+    }
+
+    /**
+     * Utility method to strip the revision part from a file path, if present. For
+     * example, it converts "/Documents/file.txt@latest" to "/Documents/file.txt".
+     * This is used in tools that operate on the latest revision of a file, ignoring
+     * any revision markers.
+     * 
+     * @param filePath The file path
+     * @return The file path without any revision marker
+     */
+    private static String stripRevision(String filePath) {
+        if (filePath != null && filePath.contains("@")) {
+            final String[] parts = filePath.split("@");
+            filePath = parts[0];
+        }
+        return filePath;
     }
 
     @Tool(name = TOOL_CREATE_FILE_DIFF_NAME, title = "Create file diff", description = "Creates a diff between two files in the git patch format. User must be logged in to use this tool.", annotations = @Tool.Annotations(title = "Create file diff", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
@@ -546,6 +572,8 @@ public class FilesMCP {
             @ToolArg(name = "firstFile", description = "The path of the first file to create the diff from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String firstFile,
             @ToolArg(name = "secondFile", description = "The path of the second file to create the diff from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String secondFile) {
         assertUserLoggedIn();
+        assertFilePathValid(firstFile);
+        assertFilePathValid(secondFile);
 
         try {
             final NextcloudFile firstFileContent = readFileByPathWithRevision(firstFile, false);
@@ -568,10 +596,8 @@ public class FilesMCP {
             @ToolArg(name = "filePath", description = "The path of the file to delete. For example, '/Documents/file.txt'. Any revision date (using '@latest' or '@<timestamp>') added to the filename will be ignored and only the latest revision will be deleted!") String filePath) {
 
         assertUserLoggedIn();
-        if (filePath.contains("@")) {
-            String[] parts = filePath.split("@");
-            filePath = parts[0];
-        }
+        assertFilePathValid(filePath);
+        filePath = stripRevision(filePath);
         try {
             final NextcloudFile org = nextcloudService.getFile(filePath);
             if (org == null) {
@@ -600,10 +626,8 @@ public class FilesMCP {
             @ToolArg(name = "overwrite", description = "Overwrite existing file. Defaults to false", defaultValue = "false") boolean overwrite,
             @ToolArg(name = "charset", description = "Charset for the file content. Defaults to UTF-8", defaultValue = "UTF-8") String charset) {
         assertUserLoggedIn();
-        if (filePath.contains("@")) {
-            String[] parts = filePath.split("@");
-            filePath = parts[0];
-        }
+        assertFilePathValid(filePath);
+        filePath = stripRevision(filePath);
         try {
             final NextcloudFile org = nextcloudService.getFile(filePath);
             final Charset cs = Optional.ofNullable(charset).filter(c -> !c.isBlank()).map(Charset::forName)
@@ -643,7 +667,7 @@ public class FilesMCP {
             @ToolArg(name = "patch", description = "Git-style patch to apply") String patch,
             @ToolArg(name = "fuziness", description = "Fuzz factor for the patch. Roughly how many lines the patch definition can be off from the actual source", defaultValue = "4") int fuzziness) {
         assertUserLoggedIn();
-
+        assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
 
@@ -684,7 +708,7 @@ public class FilesMCP {
     public SearchFileResults searchFiles(
             @ToolArg(name = "query", description = "Fulltext search query") String query,
             @ToolArg(name = "results", defaultValue = "20", description = "Maximum number of results to return. Defaults to '20'") Integer results) {
-
+        assertUserLoggedIn();
         final int pageSize = 20;
         int page = 1;
         final List<SearchFileResult> files = new ArrayList<>(results);
@@ -730,7 +754,7 @@ public class FilesMCP {
                 page++;
 
             } catch (Exception e) {
-                logger.errorf(e, "Failed to execute fulltext search: %s", e);
+                logger.errorf(e, "Failed to execute fulltext search: %s", e.getMessage());
                 break search;
             }
         }
@@ -754,7 +778,7 @@ public class FilesMCP {
     public FileComments getFileComments(
             @ToolArg(name = "filePath", description = "The path of the file to get the comments from. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath) {
         assertUserLoggedIn();
-
+        assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
             final List<Comment> comments = this.commentService.getCommentsOfFile(file);
@@ -771,6 +795,7 @@ public class FilesMCP {
             @ToolArg(name = "filePath", description = "The path of the file to add a comment to. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath,
             @ToolArg(name = "comment", description = "Comment to add to the file") String comment) {
         assertUserLoggedIn();
+        assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
             this.commentService.addCommentToFile(file, comment);
@@ -790,6 +815,7 @@ public class FilesMCP {
     @MCPAudit
     public FileTags getFileTags(
             @ToolArg(name = "filePath", description = "The path of the file to get the file tags for. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath) {
+        assertFilePathValid(filePath);
         assertUserLoggedIn();
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
@@ -808,6 +834,7 @@ public class FilesMCP {
             @ToolArg(name = "filePath", description = "The path of the file to add tags to. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath,
             @ToolArg(name = "tags", description = "List of tags to add to the file") Set<String> tags) {
         assertUserLoggedIn();
+        assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
             // Complete list of all system tags available
@@ -845,6 +872,7 @@ public class FilesMCP {
             @ToolArg(name = "filePath", description = "The path of the file to remove tags from. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath,
             @ToolArg(name = "tags", description = "List of tags to remove from the file") Set<String> tags) {
         assertUserLoggedIn();
+        assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
             // List of tags already attached to the file
@@ -882,6 +910,8 @@ public class FilesMCP {
             @ToolArg(name = "threshold", defaultValue = "0.6", description = "Threshold for the score (from 0.0 to 1.0) to ensure only relevant results are transmited. Defaults to 0.6") Double threshold) {
 
         try {
+            assertUserLoggedIn();
+            assertFilePathValid(filePath);
             final NextcloudFile file = this.readFileByPathWithRevision(filePath, false);
 
             final InMemoryEmbeddingStore<TextSegment> embeddingStore = embeddingService
@@ -892,7 +922,6 @@ public class FilesMCP {
                             embeddingStore,
                             query, threshold, results);
 
-            @SuppressWarnings("null")
             final List<SearchMatch> matches = relevant.matches().stream()
                     .map((em) -> new SearchMatch(em.score(), em.embedded().text()))
                     .toList();

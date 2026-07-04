@@ -13,6 +13,7 @@ import org.jboss.logging.Logger;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -71,6 +72,7 @@ public class AuthorizeRedirectResource {
     /**
      * Identity provider configuration
      */
+    @RegisterForReflection
     private record OpenIDConfiguration(
             @JsonProperty("authorization_endpoint") URI authorizationEndpoint,
             @JsonProperty("token_endpoint") URI tokenEndpoint,
@@ -82,9 +84,25 @@ public class AuthorizeRedirectResource {
     }
 
     /**
+     * RFC 7591 §3.2.1 client information response.
+     */
+    @RegisterForReflection
+    private record ClientRegistrationResponse(
+            @JsonProperty("client_id") String clientId,
+            @JsonProperty("client_secret") String clientSecret,
+            @JsonProperty("client_name") String clientName,
+            @JsonProperty("redirect_uris") List<String> redirectUris,
+            @JsonProperty("grant_types") List<String> grantTypes,
+            @JsonProperty("response_types") List<String> responseTypes,
+            @JsonProperty("token_endpoint_auth_method") String tokenEndpointAuthMethod,
+            @JsonProperty("scope") String scope) {
+    }
+
+    /**
      * RFC 7591 registration request body.
      * All fields are optional per spec — server substitutes defaults.
      */
+    @RegisterForReflection
     private record ClientRegistrationRequest(
             @JsonProperty("redirect_uris") List<String> redirectUris,
             @JsonProperty("client_name") String clientName,
@@ -171,19 +189,19 @@ public class AuthorizeRedirectResource {
                     .build();
         }
 
+        final String clientName = request.clientName() != null ? request.clientName() : DEFAULT_CLIENT_NAME;
+
         // RFC 7591 §3.2.1: 201 Created with client information response
         // We return the static client information
-        final Map<String, Object> response = Map.of(
-                "client_id", clientId,
-                "client_secret", clientSecret,
-                "client_name", request.clientName() != null
-                        ? request.clientName()
-                        : DEFAULT_CLIENT_NAME,
-                "redirect_uris", request.redirectUris(),
-                "grant_types", grantedGrantTypes,
-                "response_types", grantedResponseTypes,
-                "token_endpoint_auth_method", request.tokenEndpointAuthMethod(),
-                "scope", String.join(" ", grantedScopes));
+        final ClientRegistrationResponse response = new ClientRegistrationResponse(
+                clientId,
+                clientSecret,
+                clientName,
+                request.redirectUris(),
+                grantedGrantTypes,
+                grantedResponseTypes,
+                request.tokenEndpointAuthMethod(),
+                String.join(" ", grantedScopes));
 
         return Response.status(Response.Status.CREATED)
                 .entity(response)
