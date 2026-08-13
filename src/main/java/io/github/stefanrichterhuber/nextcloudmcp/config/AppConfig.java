@@ -17,6 +17,16 @@ public interface AppConfig {
 
     UserRepository userRepository();
 
+    /**
+     * All relative resource URIs in the MCP response are automatically rewritten to
+     * absolute URLs pointing to the MCP server. This is useful for MCP clients that
+     * do not support relative resource URIs (like claude)
+     * 
+     * @return
+     */
+    @WithDefault("true")
+    boolean fixResourceURIs();
+
     public interface UserRepository {
         @WithDefault("users.json")
         Path file();

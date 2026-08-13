@@ -92,6 +92,10 @@ public class LoginMCP {
     @Tool(name = TOOL_CHECK_FOR_LOGIN_NAME, title = "Check if the user is logged in", description = TOOL_CHECK_FOR_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Check if the user is logged in", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
     @MCPAudit
     public ToolResponse checkForLogin() {
+        if (config.userOidc()) {
+            return ToolResponse.success("User is logged in with OIDC token.");
+        }
+
         final Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
         if (credentials.isPresent()) {
             return ToolResponse.success("User is logged in with Nextcloud credentials.");
@@ -116,6 +120,10 @@ public class LoginMCP {
     @Tool(name = TOOL_DELETE_LOGIN_NAME, title = "Delete Nextcloud login", description = TOOL_DELETE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Delete Nextcloud login", destructiveHint = true, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
     @MCPAudit
     public ToolResponse deleteLogin() {
+        if (config.userOidc()) {
+            return ToolResponse.error("User is logged in with OIDC token. Not possible to delete login credentials.");
+        }
+
         final String user = securityIdentity.getPrincipal().getName();
         // Cancel login flow
         final NextcloudLoginService.LoginFlowJob job = ongoingLoginFlows.remove(user);
@@ -160,6 +168,10 @@ public class LoginMCP {
     @Tool(name = TOOL_INITIATE_LOGIN_NAME, title = "Start the login process at nextcloud", description = TOOL_INITIATE_LOGIN_DESCRIPTION, annotations = @Annotations(title = "Start the login process at nextcloud", destructiveHint = false, readOnlyHint = false, idempotentHint = true, openWorldHint = false))
     @MCPAudit
     public ToolResponse initiateLogin() {
+        if (config.userOidc()) {
+            return ToolResponse
+                    .error("User is logged in with OIDC token. Not possible to create additional login credentials.");
+        }
         final String user = securityIdentity.getPrincipal().getName();
 
         final NextcloudLoginService.LoginFlowJob job = ongoingLoginFlows.computeIfAbsent(user, u -> {

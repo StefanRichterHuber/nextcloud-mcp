@@ -140,18 +140,8 @@ public class ConfigMCP {
     @Inject
     NextcloudConfig nextcloudConfig;
 
-    /**
-     * Asserts that the user is logged in with Nextcloud credentials. If not, throws
-     * a ToolCallException with instructions on how to log in.
-     */
-    private void assertUserLoggedIn() {
-        Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
-        if (!credentials.isPresent()) {
-            throw new ToolCallException(
-                    "User is not logged in with Nextcloud credentials. Use tool '" + LoginMCP.TOOL_INITIATE_LOGIN_NAME
-                            + "' to start the login flow.");
-        }
-    }
+    @Inject
+    MCPTool tool;
 
     /**
      * Provides the actual HTML for the MCP App to configure the access, including
@@ -174,9 +164,11 @@ public class ConfigMCP {
 
         String html = instance.render();
 
-        // Replace relative resource paths with absolute ones (especially for both cs
-        // and js). Fix for claude-ai-mcp issue 40
-        html = html.replace("/static/bundle/", appRootUrl + "/static/bundle/");
+        if (appConfig.fixResourceURIs()) {
+            // Replace relative resource paths with absolute ones (especially for both cs
+            // and js). Fix for claude-ai-mcp issue 40
+            html = html.replace("/static/bundle/", appRootUrl + "/static/bundle/");
+        }
         // see
         // https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/draft/apps.mdx
         final Map<MetaKey, Object> meta = new HashMap<>();
@@ -185,10 +177,84 @@ public class ConfigMCP {
         final Map<String, Object> csp = new HashMap<>();
         ui.put("csp", csp);
 
+        /*
+         * Origins for static resources (images, scripts, stylesheets, fonts, media)
+         *
+         * - Empty or omitted = no external resources (secure default)
+         * - Wildcard subdomains supported: `https://*.example.com`
+         * - Maps to CSP `img-src`, `script-src`, `style-src`, `font-src`, `media-src`
+         * directives
+         *
+         * @example
+         * ["https://cdn.jsdelivr.net", "https://*.cloudflare.com"]
+         */
         csp.put("resourceDomains", List.of(appRootUrl));
+        /*
+         * Origins for network requests (fetch/XHR/WebSocket)
+         *
+         * - Empty or omitted = no external connections (secure default)
+         * - Maps to CSP `connect-src` directive
+         *
+         * @example
+         * ["https://api.weather.com", "wss://realtime.service.com"]
+         */
         csp.put("connectDomains", List.of(appRootUrl));
-        csp.put("frameDomains", List.of());
+        /**
+         * Origins for nested iframes
+         *
+         * - Empty or omitted = no nested iframes allowed (`frame-src 'none'`)
+         * - Maps to CSP `frame-src` directive
+         *
+         * @example
+         *          ["https://www.youtube.com", "https://player.vimeo.com"]
+         */
+        csp.put("frameDomains", List.of(appRootUrl));
+        /*
+         * Allowed base URIs for the document
+         *
+         * - Empty or omitted = only same origin allowed (`base-uri 'self'`)
+         * - Maps to CSP `base-uri` directive
+         *
+         * @example
+         * ["https://cdn.example.com"]
+         */
         csp.put("baseUriDomains", List.of(appRootUrl));
+
+        /*
+         * Dedicated origin for view
+         *
+         * Optional domain for the view's sandbox origin. Useful when views need
+         * stable, dedicated origins for OAuth callbacks, CORS policies, or API key
+         * allowlists.
+         *
+         * **Host-dependent:** The format and validation rules for this field are
+         * determined by each host. Servers MUST consult host-specific documentation
+         * for the expected domain format. Common patterns include:
+         * - Hash-based subdomains (e.g., `{hash}.claudemcpcontent.com`)
+         * - URL-derived subdomains (e.g., `www-example-com.oaiusercontent.com`)
+         *
+         * If omitted, Host uses default sandbox origin (typically per-conversation).
+         *
+         * @example
+         * "a904794854a047f6.claudemcpcontent.com"
+         * 
+         * @example
+         * "www-example-com.oaiusercontent.com"
+         */
+        String domain = appRootUrl.replaceAll("https?://", "");
+        ui.put("domain", domain);
+        /*
+         * Visual boundary preference
+         *
+         * Boolean controlling whether a visible border and background is provided by
+         * the host. Specifying an
+         * explicit value for this is recommended because hosts' defaults may vary.
+         *
+         * - `true`: Request visible border + background
+         * - `false`: Request no visible border + background
+         * - omitted: host decides border
+         */
+        ui.put("prefersBorder", true);
 
         // Files.write(Paths.get("full.html"), html.getBytes(StandardCharsets.UTF_8));
 
@@ -205,7 +271,7 @@ public class ConfigMCP {
     @Tool(name = TOOL_CONFIG_TOOL_NAME, title = "Configure Nextcloud MCP access settings", description = "MCP App to manage the configuration for the Nextcloud MCP plugin", structuredContent = true)
     @MCPAudit
     public UserAccessConfig config() {
-        assertUserLoggedIn();
+        tool.assertUserLoggedIn();
         final UserAccessConfig accessConfig = userRepository.getAccessConfigForCurrentUser()
                 .orElse(new UserAccessConfig(null, null, false, false, false, false, false, false));
 
@@ -222,10 +288,10 @@ public class ConfigMCP {
     @MCPAudit
     public ToolResponse setAccessConfig(ConfigFromApp config) {
         try {
-            assertUserLoggedIn();
+            tool.assertUserLoggedIn();
             userRepository.saveAccessConfigForCurrentUser(config.toUserAccessConfig());
 
-            ToolResponse response = ToolResponse.success("Access configuration set to: " + config);
+            final ToolResponse response = ToolResponse.success("Access configuration set to: " + config);
             return response;
         } catch (Exception e) {
             if (e instanceof ToolCallException tce) {

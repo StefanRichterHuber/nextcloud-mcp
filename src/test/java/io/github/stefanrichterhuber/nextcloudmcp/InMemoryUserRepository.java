@@ -96,4 +96,16 @@ public class InMemoryUserRepository implements UserRepository {
         saveAccessConfigForUser(user, config);
     }
 
+    @Override
+    public void removeCredentialsForCurrentUser() throws Exception {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'removeCredentialsForCurrentUser'");
+    }
+
+    @Override
+    public void removeCredentialsForUser(String userId) throws Exception {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'removeCredentialsForUser'");
+    }
+
 }

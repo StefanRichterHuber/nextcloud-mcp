@@ -33,13 +33,14 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudCommentService
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileDiffService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudFileService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudSystemTagService;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.NextcloudUserService;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.Comment;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchQuery;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.FulltextSearchResult;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudFile;
-import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
 import io.github.stefanrichterhuber.nextcloudlib.runtime.models.SystemTag;
 import io.github.stefanrichterhuber.nextcloudmcp.audit.MCPAudit;
+import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.EmbeddingService;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.mcp.FilesMCP.SearchFileResults.SearchFileResult;
@@ -56,7 +57,9 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolResponse;
+import io.quarkus.oidc.AccessTokenCredential;
 import io.quarkus.runtime.annotations.RegisterForReflection;
+import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.tika.TikaParser;
 import jakarta.activation.DataSource;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -135,7 +138,19 @@ public class FilesMCP {
     NextcloudCommentService commentService;
 
     @Inject
+    NextcloudConfig config;
+
+    @Inject
     Logger logger;
+
+    @Inject
+    MCPTool tools;
+
+    @Inject
+    SecurityIdentity securityIdentity;
+
+    @Inject
+    NextcloudUserService userService;
 
     // TODO make configurable per user or through some ui or config file, e.g. to
     // also show certain file types that are currently hidden
@@ -363,19 +378,6 @@ public class FilesMCP {
     }
 
     /**
-     * Asserts that the user is logged in with Nextcloud credentials. If not, throws
-     * a ToolCallException with instructions on how to log in.
-     */
-    private void assertUserLoggedIn() {
-        Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
-        if (!credentials.isPresent()) {
-            throw new ToolCallException(
-                    "User is not logged in with Nextcloud credentials. Use tool '" + LoginMCP.TOOL_INITIATE_LOGIN_NAME
-                            + "' to start the login flow.");
-        }
-    }
-
-    /**
      * Utility method to validate a file path string, throwing a ToolCallException
      * if the path is invalid. Currently checks for emptiness and for paths starting
      * with {@code ..} to prevent directory traversal attacks.
@@ -452,8 +454,9 @@ public class FilesMCP {
     @MCPAudit
     public FileListResult listFiles(
             @ToolArg(name = "path", description = "The path to list files from. For example, '/' for the root directory or '/Documents' for the Documents folder.") String path) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(path);
+
         try {
             final List<NextcloudFile> files = nextcloudService.listFiles(path, -1).stream()
                     .filter(file -> !file.path().endsWith("/")).filter(this::isVisibleFile).toList();
@@ -467,7 +470,7 @@ public class FilesMCP {
     @MCPAudit
     public FileListResult getFileRevisions(
             @ToolArg(name = "filePath", description = "The path of the file to get revisions from. For example, '/Documents/file.txt'.") String filePath) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
 
         assertFilePathValid(filePath);
         filePath = stripRevision(filePath);
@@ -487,7 +490,7 @@ public class FilesMCP {
     public ToolResponse getFileContent(
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath,
             McpLog log) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(filePath);
 
         try {
@@ -571,7 +574,7 @@ public class FilesMCP {
     public ToolResponse createFileDiff(
             @ToolArg(name = "firstFile", description = "The path of the first file to create the diff from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String firstFile,
             @ToolArg(name = "secondFile", description = "The path of the second file to create the diff from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String secondFile) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(firstFile);
         assertFilePathValid(secondFile);
 
@@ -595,7 +598,7 @@ public class FilesMCP {
     public ToolResponse deleteFile(
             @ToolArg(name = "filePath", description = "The path of the file to delete. For example, '/Documents/file.txt'. Any revision date (using '@latest' or '@<timestamp>') added to the filename will be ignored and only the latest revision will be deleted!") String filePath) {
 
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(filePath);
         filePath = stripRevision(filePath);
         try {
@@ -625,7 +628,7 @@ public class FilesMCP {
             @ToolArg(name = "content-type", description = "Content type of the new document. e.g text/markdown") String contentType,
             @ToolArg(name = "overwrite", description = "Overwrite existing file. Defaults to false", defaultValue = "false") boolean overwrite,
             @ToolArg(name = "charset", description = "Charset for the file content. Defaults to UTF-8", defaultValue = "UTF-8") String charset) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(filePath);
         filePath = stripRevision(filePath);
         try {
@@ -666,7 +669,7 @@ public class FilesMCP {
             @ToolArg(name = "filePath", description = "The path of the file to apply the patch. For example, '/Documents/file.txt'. Any revision date (using '@latest' or '@<timestamp>') added to the filename will be ignored and only the latest revision will be patche!") String filePath,
             @ToolArg(name = "patch", description = "Git-style patch to apply") String patch,
             @ToolArg(name = "fuziness", description = "Fuzz factor for the patch. Roughly how many lines the patch definition can be off from the actual source", defaultValue = "4") int fuzziness) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
@@ -708,7 +711,7 @@ public class FilesMCP {
     public SearchFileResults searchFiles(
             @ToolArg(name = "query", description = "Fulltext search query") String query,
             @ToolArg(name = "results", defaultValue = "20", description = "Maximum number of results to return. Defaults to '20'") Integer results) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         final int pageSize = 20;
         int page = 1;
         final List<SearchFileResult> files = new ArrayList<>(results);
@@ -777,7 +780,7 @@ public class FilesMCP {
     @MCPAudit
     public FileComments getFileComments(
             @ToolArg(name = "filePath", description = "The path of the file to get the comments from. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
@@ -794,7 +797,7 @@ public class FilesMCP {
     public ToolResponse addFileComment(
             @ToolArg(name = "filePath", description = "The path of the file to add a comment to. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath,
             @ToolArg(name = "comment", description = "Comment to add to the file") String comment) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
@@ -816,7 +819,7 @@ public class FilesMCP {
     public FileTags getFileTags(
             @ToolArg(name = "filePath", description = "The path of the file to get the file tags for. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath) {
         assertFilePathValid(filePath);
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
             final List<String> tags = this.tagService.listSystemTagsOfFile(file).stream().map(st -> st.displayName())
@@ -833,7 +836,7 @@ public class FilesMCP {
     public ToolResponse addFileTags(
             @ToolArg(name = "filePath", description = "The path of the file to add tags to. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath,
             @ToolArg(name = "tags", description = "List of tags to add to the file") Set<String> tags) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
@@ -871,7 +874,7 @@ public class FilesMCP {
     public ToolResponse removeFileTags(
             @ToolArg(name = "filePath", description = "The path of the file to remove tags from. For example, '/Documents/file.txt'. Only the latest file revision is supported") String filePath,
             @ToolArg(name = "tags", description = "List of tags to remove from the file") Set<String> tags) {
-        assertUserLoggedIn();
+        tools.assertUserLoggedIn();
         assertFilePathValid(filePath);
         try {
             final NextcloudFile file = readFileByPathWithRevision(filePath, true);
@@ -910,7 +913,7 @@ public class FilesMCP {
             @ToolArg(name = "threshold", defaultValue = "0.6", description = "Threshold for the score (from 0.0 to 1.0) to ensure only relevant results are transmited. Defaults to 0.6") Double threshold) {
 
         try {
-            assertUserLoggedIn();
+            tools.assertUserLoggedIn();
             assertFilePathValid(filePath);
             final NextcloudFile file = this.readFileByPathWithRevision(filePath, false);
 
