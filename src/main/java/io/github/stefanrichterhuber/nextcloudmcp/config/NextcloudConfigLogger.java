@@ -23,7 +23,8 @@ public class NextcloudConfigLogger {
         logger.infof("""
                 Current configuration:
                 * `nextcloud.url`: %s
-                * `nextcloud.appName`: %s
+                * `nextcloud.app-name`: %s
+                * `nextcloud.user-oidc`: %s
                 * `app.audit.enabled`: %s
                 * `app.audit.file`: %s
                 * `app.root-url` : %s
@@ -31,6 +32,7 @@ public class NextcloudConfigLogger {
                     """,
                 nextcloudConfig.url(),
                 nextcloudConfig.appName(),
+                nextcloudConfig.userOidc() ? "true" : "false",
                 appConfig.audit().enabled() ? "true" : "false",
                 appConfig.audit().target(),
                 appConfig.rootUrl(),
