@@ -57,7 +57,6 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.ToolResponse;
-import io.quarkus.oidc.AccessTokenCredential;
 import io.quarkus.runtime.annotations.RegisterForReflection;
 import io.quarkus.security.identity.SecurityIdentity;
 import io.quarkus.tika.TikaParser;
@@ -462,6 +461,7 @@ public class FilesMCP {
                     .filter(file -> !file.path().endsWith("/")).filter(this::isVisibleFile).toList();
             return FileListResult.fromNextcloudFiles(path, files);
         } catch (IOException e) {
+            logger.errorf(e, "Failed to list files in folder '%s'", path);
             throw new ToolCallException("Failed to list files: " + e.getMessage());
         }
     }

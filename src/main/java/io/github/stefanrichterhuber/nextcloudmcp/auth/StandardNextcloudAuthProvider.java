@@ -1,11 +1,13 @@
 package io.github.stefanrichterhuber.nextcloudmcp.auth;
 
-import java.util.Base64;
+import java.security.Principal;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
 import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
-import io.quarkus.oidc.AccessTokenCredential;
+import io.quarkus.security.credential.TokenCredential;
 import io.quarkus.security.identity.SecurityIdentity;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -21,67 +23,31 @@ public class StandardNextcloudAuthProvider implements NextcloudAuthProvider {
     @Inject
     NextcloudConfig config;
 
+    private NextcloudUserCredentials creds = null;
+
     @Override
-    public String getUser() {
-        if (config.userOidc()) {
-            return securityIdentity.getPrincipal().getName();
+    public void setCredentials(NextcloudUserCredentials creds) {
+        this.creds = creds;
+    }
+
+    @Override
+    public NextcloudUserCredentials getCredentials() {
+        if (creds == null) {
+
+            if (config.userOidc() && !securityIdentity.isAnonymous()) {
+                final Principal principal = securityIdentity.getPrincipal();
+                final TokenCredential cred = securityIdentity.getCredential(TokenCredential.class);
+                final String user = principal.getName();
+                final String secret = cred.getToken();
+                final String server = config.url();
+                final Mode mode = Mode.OIDC_TOKEN;
+                creds = new NextcloudUserCredentials(user, secret, server, mode);
+            } else {
+                creds = userRepository.getCredentialsForCurrentUser()
+                        .orElseThrow(() -> new IllegalStateException("No credentials found for current user"));
+            }
         }
-        return userRepository.getCredentialsForCurrentUser()
-                .orElseThrow(() -> new IllegalStateException("No credentials found for current user")).loginName();
-    }
-
-    @Override
-    public String getPassword() {
-        if (config.userOidc()) {
-            throw new UnsupportedOperationException(
-                    "Method 'getPassword' is not supported when using OIDC authentication");
-        }
-        return userRepository.getCredentialsForCurrentUser()
-                .orElseThrow(() -> new IllegalStateException("No credentials found for current user")).appPassword();
-
-    }
-
-    @Override
-    public String getServer() {
-        if (config.userOidc()) {
-            return config.url();
-        }
-        return userRepository.getCredentialsForCurrentUser()
-                .orElseThrow(() -> new IllegalStateException("No credentials found for current user")).server();
-    }
-
-    @Override
-    public void setUser(String user) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setUser'");
-    }
-
-    @Override
-    public void setPassword(String password) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setPassword'");
-    }
-
-    @Override
-    public void setServer(String server) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'setServer'");
-    }
-
-    /**
-     * Returns a Basic-Auth Authorization header build from {@link #getUser()} and
-     * {@link #getPassword()}
-     * 
-     * @return
-     */
-    public String getAuthorizationHeader() {
-        if (config.userOidc()) {
-            final AccessTokenCredential cred = securityIdentity.getCredential(AccessTokenCredential.class);
-            System.out.println("Token: " + cred.getToken());
-            return "Bearer " + cred.getToken();
-        }
-        String valueToEncode = getUser() + ":" + getPassword();
-        return "Basic " + Base64.getEncoder().encodeToString(valueToEncode.getBytes());
+        return creds;
     }
 
 }

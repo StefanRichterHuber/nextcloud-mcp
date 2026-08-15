@@ -3,6 +3,8 @@ package io.github.stefanrichterhuber.nextcloudmcp;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import io.github.stefanrichterhuber.nextcloudlib.runtime.auth.NextcloudAuthProvider;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials;
+import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCredentials.Mode;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Alternative;
@@ -24,35 +26,19 @@ public class NextcloudAuthTestProvider implements NextcloudAuthProvider {
     @ConfigProperty(name = "nextcloud.url")
     String url;
 
+    private NextcloudUserCredentials creds = null;
+
     @Override
-    public String getUser() {
-        return user;
+    public void setCredentials(NextcloudUserCredentials creds) {
+        this.creds = creds;
     }
 
     @Override
-    public String getPassword() {
-        return password;
-
-    }
-
-    @Override
-    public String getServer() {
-        return url;
-    }
-
-    @Override
-    public void setUser(String user) {
-        this.user = user;
-    }
-
-    @Override
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    @Override
-    public void setServer(String server) {
-        this.url = server;
+    public NextcloudUserCredentials getCredentials() {
+        if (creds == null) {
+            creds = new NextcloudUserCredentials(user, password, url, Mode.APP_PASSWORD);
+        }
+        return creds;
     }
 
 }
