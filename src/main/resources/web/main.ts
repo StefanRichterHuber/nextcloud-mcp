@@ -127,11 +127,15 @@ function handleHostContextChanged(ctx: McpUiHostContext) {
 }
 
 interface ConfigFromServer {
-    rootFolder: string,
-    filePatterns: string[],
-    textContent: boolean,
-    imageContent: boolean,
-    audioContent: boolean
+    user: string,
+    server: string,
+    permissions: {
+        rootFolder: string,
+        filePatterns: string[],
+        textContent: boolean,
+        imageContent: boolean,
+        audioContent: boolean
+    }
 }
 
 const app = new App({ name: "Configure Nextcloud MCP App", version: "1.0.0" });
@@ -139,23 +143,27 @@ app.onerror = console.error;
 // Handle the initial tool result pushed by the host
 app.ontoolresult = (result) => {
     const config = result.structuredContent as unknown as ConfigFromServer;
-    if (config.rootFolder) {
-        rootInput.value = config.rootFolder;
-    }
-    if (config.audioContent) {
-        (document.getElementById("chkAudio") as HTMLInputElement).click();
-    }
-    if (config.imageContent) {
-        (document.getElementById("chkImage") as HTMLInputElement).click();
-    }
-    if (config.textContent) {
-        (document.getElementById("chkText") as HTMLInputElement).click();
-    }
-    if (config.filePatterns) {
-        config.filePatterns.forEach(v => patterns.add(v));
-        renderTags();
+    if (config.permissions) {
+        if (config?.permissions?.rootFolder) {
+            rootInput.value = config?.permissions?.rootFolder;
+        }
+        if (config?.permissions?.audioContent) {
+            (document.getElementById("chkAudio") as HTMLInputElement).click();
+        }
+        if (config?.permissions?.imageContent) {
+            (document.getElementById("chkImage") as HTMLInputElement).click();
+        }
+        if (config?.permissions?.textContent) {
+            (document.getElementById("chkText") as HTMLInputElement).click();
+        }
+        if (config?.permissions?.filePatterns) {
+            config?.permissions?.filePatterns.forEach(v => patterns.add(v));
+            renderTags();
+        }
     }
 
+    (document.getElementById("nextcloudLnk") as HTMLLinkElement).href = config.server;
+    (document.getElementById("usernameLabel") as HTMLSpanElement).textContent = config.user;
 };
 
 app.onhostcontextchanged = handleHostContextChanged;

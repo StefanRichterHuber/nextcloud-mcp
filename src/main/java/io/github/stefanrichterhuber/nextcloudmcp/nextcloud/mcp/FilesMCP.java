@@ -485,7 +485,7 @@ public class FilesMCP {
         }
     }
 
-    @Tool(name = "get-file-content", title = "Get file content", description = "Gets the content of a file as text or blob resource. User must be logged in to use this tool.", structuredContent = true, annotations = @Tool.Annotations(title = "Get file content", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
+    @Tool(name = "get-file-content", title = "Get file content", description = "Gets the content of a file as text or blob resource. User must be logged in to use this tool.", structuredContent = false, annotations = @Tool.Annotations(title = "Get file content", destructiveHint = false, readOnlyHint = true, idempotentHint = true, openWorldHint = false))
     @MCPAudit
     public ToolResponse getFileContent(
             @ToolArg(name = "filePath", description = "The path of the file to get the content from. For example, '/Documents/file.txt'. A revision date can be specified by appending '@' followed by the timestamp. '@latest' can be used to get the latest revision.") String filePath,

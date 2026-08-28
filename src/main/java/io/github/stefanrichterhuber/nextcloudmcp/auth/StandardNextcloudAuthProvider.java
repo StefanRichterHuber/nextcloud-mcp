@@ -9,10 +9,10 @@ import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
 import io.quarkus.security.credential.TokenCredential;
 import io.quarkus.security.identity.SecurityIdentity;
-import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.context.RequestScoped;
 import jakarta.inject.Inject;
 
-@ApplicationScoped
+@RequestScoped
 public class StandardNextcloudAuthProvider implements NextcloudAuthProvider {
     @Inject
     UserRepository userRepository;

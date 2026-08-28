@@ -11,7 +11,6 @@ import io.github.stefanrichterhuber.nextcloudlib.runtime.models.NextcloudUserCre
 import io.github.stefanrichterhuber.nextcloudmcp.audit.MCPAudit;
 import io.github.stefanrichterhuber.nextcloudmcp.config.NextcloudConfig;
 import io.github.stefanrichterhuber.nextcloudmcp.nextcloud.UserRepository;
-import io.quarkiverse.mcp.server.Progress;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolCallException;
 import io.quarkiverse.mcp.server.Tool.Annotations;
@@ -121,7 +120,8 @@ public class LoginMCP {
     @MCPAudit
     public ToolResponse deleteLogin() {
         if (config.userOidc()) {
-            return ToolResponse.error("User is logged in with OIDC token. Not possible to delete login credentials.");
+            return ToolResponse.error(
+                    "User is logged in with OIDC token. Not possible nor necessary to delete login credentials.");
         }
 
         final String user = securityIdentity.getPrincipal().getName();
@@ -170,7 +170,7 @@ public class LoginMCP {
     public ToolResponse initiateLogin() {
         if (config.userOidc()) {
             return ToolResponse
-                    .error("User is logged in with OIDC token. Not possible to create additional login credentials.");
+                    .error("User is logged in with OIDC token. Not possible / nor necessary to create additional login credentials.");
         }
         final String user = securityIdentity.getPrincipal().getName();
 

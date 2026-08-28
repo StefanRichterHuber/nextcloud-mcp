@@ -1,6 +1,4 @@
 {@java.lang.String href}
-{@java.lang.String nextcloudUser}
-{@java.lang.String nextloudUrl}
 <!doctype html>
 <html lang="en">
   <head>
@@ -9,7 +7,7 @@
     <base href="{href}" />
     <title>Nextcloud file access configuration</title>
 
-    {#bundle tag="style"/} 
+    {#bundle tag="style"/}
   </head>
   <body>
     <!-- Toast -->
@@ -35,8 +33,11 @@
     <div class="card">
       <div class="card-header">
         <h1 class="card-title">Nextcloud MCP Security</h1>
-        <h6 class="card-subtitle mb-2 text-body-secondary">
-            <a href="{nextloudUrl}" target="_blank" rel="noopener noreferrer">Nextcloud</a> user: {nextcloudUser}
+        <h6 id="titleCard" class="card-subtitle mb-2 text-body-secondary">
+          <a id="nextcloudLnk" href="" target="_blank" rel="noopener noreferrer"
+            >Nextcloud</a
+          >
+          user: <span id="usernameLabel"></span>
         </h6>
       </div>
       <div class="card-body">
