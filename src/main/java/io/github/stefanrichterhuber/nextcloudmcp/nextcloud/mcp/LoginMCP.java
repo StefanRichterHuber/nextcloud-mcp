@@ -134,7 +134,7 @@ public class LoginMCP {
         // Cancel existing accounts
         final Optional<NextcloudUserCredentials> credentials = userRepository.getCredentialsForCurrentUser();
         if (credentials.isPresent()) {
-            final boolean success = loginService.deleteUserAccount(credentials.get());
+            final boolean success = loginService.deleteUserPassword(credentials.get());
             if (success) {
                 try {
                     userRepository.removeCredentialsForCurrentUser();

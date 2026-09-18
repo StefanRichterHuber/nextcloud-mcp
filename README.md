@@ -157,7 +157,8 @@ All `/mcp/*` endpoints require a valid OIDC bearer token. The server is configur
 | Endpoint | Description |
 | :--- | :--- |
 | `GET /.well-known/oauth-protected-resource` | RFC 9728 resource metadata |
-| `GET /.well-known/oauth-protected-resource/mcp` | MCP-specific resource metadata |
+
+> Note: In order to introspect `opaque` tokens from the MCP client, this MCP server needs a its own client registration at the OIDC identity provider ( set `quarkus.oidc.client-id` / `QUARKUS_OIDC_AUTH_SERVER_URL` and `quarkus.oidc.credentials.secret` / `QUARKUS_OIDC_CREDENTIALS_SECRET` with the client id and client secret). Moreover set the `RFC 9728` resource url to the (resource) url of this MCP server in the IDP client config. Ensure exact match (even trailing slashes can prevent matching)
 
 ### Per-User Access Control
 
