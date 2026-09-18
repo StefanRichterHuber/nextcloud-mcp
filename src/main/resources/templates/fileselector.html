@@ -1,0 +1,91 @@
+{@java.lang.String href}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="{href}" />
+    <title>Nextcloud file selector</title>
+
+    {#bundle key="fileselector" tag="style"/}
+  </head>
+  <body>
+    <!-- Toast -->
+    <div
+      class="toast-container position-fixed bottom-0 end-0 p-3"
+      style="z-index: 9999"
+    >
+      <div id="toast-success" class="toast align-items-center" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">
+            <i class="bi bi-check2-circle me-2"></i
+            ><span id="toast-success-text">Files added as resources.</span>
+          </div>
+          <button
+            type="button"
+            class="btn-close btn-close-white me-2 m-auto"
+            data-bs-dismiss="toast"
+          ></button>
+        </div>
+      </div>
+      <div id="toast-error" class="toast align-items-center" role="alert">
+        <div class="d-flex">
+          <div class="toast-body">
+            <i class="bi bi-exclamation-triangle me-2"></i
+            ><span id="toast-error-text">Something went wrong.</span>
+          </div>
+          <button
+            type="button"
+            class="btn-close btn-close-white me-2 m-auto"
+            data-bs-dismiss="toast"
+          ></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h1 class="card-title">Select Nextcloud Files</h1>
+        <div class="card-subtitle">
+          Browse your files and mark the ones the assistant should be able to
+          read.
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="toolbar">
+          <nav id="breadcrumbs" class="breadcrumbs"></nav>
+          <button
+            type="button"
+            id="upBtn"
+            class="btn-icon"
+            title="Go to parent folder"
+          >
+            <i class="bi bi-arrow-90deg-up"></i> Up
+          </button>
+        </div>
+
+        <div id="fileList" class="file-list"></div>
+
+        <div class="toolbar">
+          <span class="selected-count"
+            ><strong id="selectedCount">0</strong> file(s) selected</span
+          >
+          <button
+            type="button"
+            id="clearSelectionBtn"
+            class="btn-icon"
+            title="Clear selection"
+          >
+            <i class="bi bi-x-circle"></i> Clear
+          </button>
+        </div>
+
+        <button type="button" id="addResourcesBtn" class="btn-submit" disabled>
+          <i class="bi bi-plus-circle me-2"></i>Add selected files as
+          resources
+        </button>
+      </div>
+    </div>
+    {#bundle key="fileselector" tag="script"/}
+  </body>
+</html>

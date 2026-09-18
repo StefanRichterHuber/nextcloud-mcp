@@ -172,7 +172,6 @@ public class FilesMCP {
      * @return the {@link ResourceInfo} for the registered (or already existing)
      *         resource.
      */
-    @SuppressWarnings("unused")
     private ResourceInfo registerNextcloudFileResource(String url, NextcloudFile file) {
 
         final String resourceId = String.format("%s@%d", url, file.modified().getTime());
@@ -193,6 +192,31 @@ public class FilesMCP {
                 .setHandler(args -> getNextcloudFileResource(url, file))
 
                 .register();
+    }
+
+    /**
+     * Registers the latest revision of the file at the given path as an MCP
+     * resource. Used by other MCP tools (e.g. the file selector) to expose a
+     * user-picked file without duplicating the resource-registration logic.
+     *
+     * <p>
+     * Unlike {@link #isVisibleFile(NextcloudFile)}-gated tools, this method does
+     * not restrict by content type: the caller is a human explicitly picking a
+     * file to expose, not the LLM discovering it on its own.
+     *
+     * @param filePath the Nextcloud path of the file to register.
+     * @return the {@link ResourceInfo} for the registered (or already existing)
+     *         resource.
+     * @throws IOException       if the file cannot be read.
+     * @throws ToolCallException if the file does not exist.
+     */
+    public ResourceInfo registerFileAsResource(String filePath) throws IOException {
+        assertFilePathValid(filePath);
+        final NextcloudFile file = nextcloudService.getFile(filePath);
+        if (file == null) {
+            throw new ToolCallException(String.format("File '%s' not found", filePath));
+        }
+        return registerNextcloudFileResource(filePath, file);
     }
 
     /**
