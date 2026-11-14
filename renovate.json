@@ -10,6 +10,12 @@
     {
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
       "automerge": true
+    },
+    {
+      "description": "quarkus-langchain4j pins a langchain4j version; update both together to avoid mismatched langchain4j-core on the classpath",
+      "matchDatasources": ["maven"],
+      "matchPackageNames": ["io.quarkiverse.langchain4j:**", "dev.langchain4j:**"],
+      "groupName": "langchain4j"
     }
   ]
 }
