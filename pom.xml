@@ -11,6 +11,7 @@
     <properties>
         <compiler-plugin.version>3.16.0</compiler-plugin.version>
         <maven.compiler.release>25</maven.compiler.release>
+        <mcp-sdk.version>2.4.0</mcp-sdk.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
@@ -140,14 +141,8 @@
         <dependency>
             <groupId>org.mvnpm.at.modelcontextprotocol</groupId>
             <artifactId>ext-apps</artifactId>
-            <version>1.7.5</version>
+            <version>2.0.4</version>
             <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.mvnpm</groupId>
-                    <artifactId>express</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.mvnpm</groupId>
@@ -157,15 +152,15 @@
         </dependency>
         <dependency>
             <groupId>org.mvnpm.at.modelcontextprotocol</groupId>
-            <artifactId>sdk</artifactId>
-            <version>1.29.0</version>
+            <artifactId>core</artifactId>
+            <version>${mcp-sdk.version}</version>
             <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.mvnpm</groupId>
-                    <artifactId>express</artifactId>
-                </exclusion>
-            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.mvnpm.at.modelcontextprotocol</groupId>
+            <artifactId>client</artifactId>
+            <version>${mcp-sdk.version}</version>
+            <scope>provided</scope>
         </dependency>
 
 
