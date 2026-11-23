@@ -107,7 +107,7 @@
         <dependency>
             <groupId>io.quarkiverse.tika</groupId>
             <artifactId>quarkus-tika</artifactId>
-            <version>2.3.2</version>
+            <version>4.0.0</version>
         </dependency>
         <dependency>
             <groupId>io.quarkiverse.qute.web</groupId>
